@@ -1,7 +1,10 @@
 ---
 title: "Evaluating incidence forecasting for informing outbreak response"
+subtitle: "MRes Biomedical Research (EECID)"
 author: "Janetta E. Skarp"
-date: "26 March 2018"
+date: "August 2018"
+geometry: margin=2cm
+fonsize: 11pt
 output: pdf_document
 urlcolor: blue
 ---
@@ -10,15 +13,43 @@ urlcolor: blue
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+\begin{center}
+Department of Surgery and Cancer
+
+Supervisors: Thibaut Jombart, Anne Cori
+\end{center}
+
+\clearpage
+
+# Statement of Originality
+
+I certify that this thesis, and the research to which it refers, are the product of my own work, conducted during the current year of the MRes in Biomedical Research at Imperial College London. Any ideas or quotations from the work of other people, published or otherwise, or from my own previous work are fully acknowledged in accordance with the standard referencing practices of the discipline.
+
+Personalised paragraph: packages (RECON), data sources
+
+\newpage
+# Abstract
+
+\newpage
 # Introduction
 
 ## Branching process models
 
 From project description:
 
-Branching process models are commonly used as an alternative to compartmental models for estimating transmissibility during infectious disease outbreaks. Such approaches are now increasingly used for informing outbreak response.  However, their actual ability to accurately predict the course of an epidemic in real time has not been evaluated.
+Branching process models are commonly used as an alternative to compartmental models for estimating transmissibility during infectious disease outbreaks. Such approaches are now increasingly used for informing outbreak response.  However, their actual ability to accurately predict the course of an epidemic in real time has not been evaluated. 
 
-## Methods for epidemic forecasting
+## Epidemic forecasting methods
+
+Members of the R Epidemics Consortium have developed packages based on branching process models to aid with incidence forecasting. Packages can be used together to obtain incidence forecasts based on daily incidence data from earlier on in the epidemic.  
+
+### [epitrix](http://www.repidemicsconsortium.org/epitrix/)
+
+Can give the shape and scale of a Gamma distribution to fit the serial interval and also estimate reproduction numbers from growth rate/incidence.
+
+Information required:
+
+* daily incidence of disease
 
 ### [earlyR](http://www.repidemicsconsortium.org/earlyR)
 
@@ -29,17 +60,9 @@ Information required:
 * distribution of serial interval (mean and SD of Gamma distribution)
 * daily incidence of disease (confirmed and probable cases)
 
-### [epitrix](http://www.repidemicsconsortium.org/epitrix/)
-
-Can estimate reproduction numbers from growth rate/incidence.
-
-Information required:
-
-* daily incidence of disease
-
 ### [projections](https://github.com/reconhub/projections)
 
-Can generate projections when given the current incidence data, a serial interval distribution, and some reproduction numbers.
+Can generate projections when given the current incidence data, a serial interval distribution, and some reproduction numbers. Daily incidence follows a Poisson process.
 
 Information required:
 
@@ -49,4 +72,18 @@ Information required:
 
 ## Aims
 
-I will use both publicly available empirical data and simulated epidemics to assess the performances of currently available methods provided by the R Epidemics Consortium for forecasting incidence. The methods will be compared for different diseases. The impact of factors such as under-reporting, reporting delays, or super-spreading will also be considered. The methods' performance in the early stages of epidemics is of particular interest.  
+I will use both publicly available empirical data and simulated epidemics to assess the performances of currently available methods provided by the R Epidemics Consortium for forecasting incidence. The methods will be compared for different diseases. The impact of factors such as under-reporting, reporting delays, or super-spreading may also be considered. The methods' performance in the early stages of epidemics is of particular interest.  
+
+\newpage
+# Methods
+
+The package *epitrix* is first used to obtain the shape and scale of a Gamma distribution of a disease based on daily incidence data. The information on the distribution of the serial interval and the data on daily incidence is then fed into the package *earlyR*. *earlyR* can estimate the real-time reproduction number for the given data and serial interval. Finally, the information on the incidence data, serial interval, and real-time reproduction number is combined and a forecast for future incidence can be estimated with the package *projections*.   
+
+\newpage
+# Results
+
+# Discussion
+
+## Conclusions
+
+# References
