@@ -1,30 +1,52 @@
 ---
-title: "Project 2"
+title: "Evaluating incidence forecasting for informing outbreak response"
 author: "Janetta E. Skarp"
 date: "26 March 2018"
 output: pdf_document
+urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Introduction
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Branching process models
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+From project description:
 
-```{r cars}
-summary(cars)
-```
+Branching process models are commonly used as an alternative to compartmental models for estimating transmissibility during infectious disease outbreaks. Such approaches are now increasingly used for informing outbreak response.  However, their actual ability to accurately predict the course of an epidemic in real time has not been evaluated.
 
-## Including Plots
+## Methods for epidemic forecasting
 
-You can also embed plots, for example:
+### [earlyR](http://www.repidemicsconsortium.org/earlyR)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+Can estimate reproduction numbers and force of infection over time from incidence.
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Information required:
+
+* distribution of serial interval (mean and SD of Gamma distribution)
+* daily incidence of disease (confirmed and probable cases)
+
+### [epitrix](http://www.repidemicsconsortium.org/epitrix/)
+
+Can estimate reproduction numbers from growth rate/incidence.
+
+Information required:
+
+* daily incidence of disease
+
+### [projections](https://github.com/reconhub/projections)
+
+Can generate projections when given the current incidence data, a serial interval distribution, and some reproduction numbers.
+
+Information required:
+
+* daily incidence
+* serial interval
+* reproduction number
+
+## Aims
+
+I will use both publicly available empirical data and simulated epidemics to assess the performances of currently available methods provided by the R Epidemics Consortium for forecasting incidence. The methods will be compared for different diseases. The impact of factors such as under-reporting, reporting delays, or super-spreading will also be considered. The methods' performance in the early stages of epidemics is of particular interest.  
