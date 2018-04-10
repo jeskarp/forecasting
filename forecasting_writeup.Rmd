@@ -33,6 +33,11 @@ Personalised paragraph: packages (RECON), data sources
 \newpage
 # Introduction
 
+* In infectious disease modelling, the disease's effective reproduction number, R, is often of interest. This refers to the number of susceptible individuals that an infectious individual infects on average. 
+* Many methods have been developed for inferring R.
+* When it comes to the real-time modelling of ongoing outbreaks, the effective reproduction number for a time window, Rt, is the calculated measure.
+* Not all methods of calculating Rt perform equally well (ref. Viboud et al. 2017).
+
 ## Branching process models
 
 From project description:
@@ -70,6 +75,97 @@ Information required:
 * serial interval
 * reproduction number
 
+## Reference papers from Harry et al. manuscript
+
+### Methods that have been developed for estimating the reproduction number
+
+Stegeman et al. (1999) Quantification of the transmission of classical swine fever virus between herds during the 1997–1998 epidemic in The Netherlands
+https://www.sciencedirect.com/science/article/pii/S016758779900077X
+Have a method for calculating the number of newly infected herds per unit time, where the date of infection is either known or assumed based on a random draw from a cumulative probability distribution.
+
+Heesterbeek (2002) A Brief History of R0 and a Recipe for its Calculation
+https://link.springer.com/article/10.1023/A:1016599411804 
+Goes through the history of R0 in epidemiology and gives the basic formulae.
+
+Meester et al. (2002) Modeling and Real-Time Prediction of Classical Swine Fever Epidemics
+http://onlinelibrary.wiley.com/doi/10.1111/j.0006-341X.2002.00178.x/full
+Criticises Stegeman et al.'s method of calculating the number of newly infected herds per unit time and suggests an alternative way of calculating R0 based on a branching process.
+
+Haydon et al. (2003) The construction and analysis of epidemic trees with reference to the 2001 UK foot-and-mouth outbreak
+http://rspb.royalsocietypublishing.org/content/270/1511/121.short
+A parameter-free method of estimating transmission events. Number of daughters from parents in the epidemic tree give you a value for Rt.
+
+Wallinga & Teunis (2004) The same paper as before
+https://academic.oup.com/aje/article/160/6/509/79472 
+
+Ferrari et al. (2005) Estimation and inference of R0 of an infectious pathogen by a removal method
+https://www.sciencedirect.com/science/article/pii/S0025556405001501
+Use chain binomial model (compartmental) to derive a MLE of R0.
+
+Wallinga & Lipsitch (2006) How generation intervals shape the relationship between growth rates and reproductive numbers
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1766383/
+Infer R from exponential growth rate (r), as calculated by a modified Lotka-Euler equation.
+
+White & Pagano (2008) A likelihood-based method for real-time estimation of the serial interval and reproductive number of an epidemic
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3951165/ 
+Use a likelihood-based method for estimating R0 and serial interval using surveillance data.
+
+Cauchemez et al. (2006) Real-time estimates in early detection of SARS
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3293464/
+Use a Bayesian statistical framework for inferring the real-time R (Rt). Build on top of Wallinga & Teunis (2004) for estimating the no. of secondary cases
+
+Diekmann et al. (2010) The construction of next-generation matrices for compartmental epidemic models
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2871801/
+Use next generation matrices' bigger eigenvalues as the estimate for R0. They worked with compartmental models.
+
+Cori et al. (2013) A New Framework and Software to Estimate Time-Varying Reproduction Numbers During Epidemics
+https://academic.oup.com/aje/article/178/9/1505/89262 
+The same paper that I have read earlier.
+
+### Effective reproduction number can vary during an epidemic - the inferential method is also a source of variability
+
+Boelle et al. (2011) Transmission parameters of the A/H1N1 (2009) influenza virus pandemic: a review
+http://onlinelibrary.wiley.com/doi/10.1111/j.1750-2659.2011.00234.x/full
+Reviewed many different studies' estimates for the serial interval and generation time for the 2009 epidemic. The different studies had different inference methods. Results of modelling studies were more variable than those of household and contact studies.
+
+Nishiura et al. (2009) Pros and cons of estimating the reproduction number from early epidemic growth rate of influenza A (H1N1) in 2009
+https://tbiomed.biomedcentral.com/articles/10.1186/1742-4682-7-1
+Have a maximum likelihood estimate of R using two different next generation matrices, the old matrix was deemed inadequate at capturing the transmission dynamics.
+
+Chowell et al. (2007) Comparative estimation of the reproduction number for pandemic influenza from daily case notification data
+http://rsif.royalsocietypublishing.org/content/4/12/155.short
+Data: Spanish flu in San Francisco 1918-1919. Used 4 different methods for estimating R: exponential growth rate, SEIR, complex SEIR, and stochastic SIR. All methods provided an acceptable estimate of R according to the researchers.
+
+Hens et al. (2011) Estimating the effective reproduction number for pandemic influenza from notification data made publicly available in real time: A multi-country analysis or influenza A/H1N1v 2009
+https://www.sciencedirect.com/science/article/pii/S0264410X10006754?via%3Dihub
+Use WHO data to estimate R for different scenarios: early phase and many countries.
+
+Ajelli et al. (2014) The role of different social contects in shaping influenza transmission during the 2009 pandemic
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4245519/#s1
+Data: H1N1 in Italy. Three models: HR (only households and general community modelled), HSR (also schools), HSWR (also schools and workplace). Apparently all 3 models gave satisfactory estimates for R compared to literature.
+
+### Underlying assumptions are a cause of variation
+
+Roberts and Heesterbeek (2007) Model-consistent estimation of the basic reproduction number from the incidence of an emerging infection
+https://link.springer.com/article/10.1007/s00285-007-0112-8
+Compare R0 estimates using different modelling assumptions: just incidence and generation interval, and additional assumptions. 
+
+Wallinga and Lipsitch (2006) How generation intervals shape the relationship between growth rates and reproductive numbers
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1766383/
+Show that choosing a generation interval distribution that fits the observed data will give you an estimate of R. 
+
+### Methods for analysing outbreaks in real-time
+
+White and Pagano (2008) A likelihood-based method for real-time estimation of the serial interval and reproductive number of an epidemic
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3951165/
+An introduction for the usage of branching process models when estimating the R0 from surveillance data. Data: Ebola Congo 1995, H7N7 Netherlands, H1N1 Netherlands
+
+### Fast and slow initial growth
+
+Viboud et al. (2016) A generalised-growth model to characterise the early ascending phase of infectious disease outbreaks
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4903879/
+Compared different outbreaks and diseases: Ebola, smallpox, influenza, HIV etc. Different outbreaks have different growth patterns - it is not always exponential. The outbreak growth pattern may even differ between locations for the same disease.  
+
 ## Aims
 
 I will use both publicly available empirical data and simulated epidemics to assess the performances of currently available methods provided by the R Epidemics Consortium for forecasting incidence. The methods will be compared for different diseases. The impact of factors such as under-reporting, reporting delays, or super-spreading may also be considered. The methods' performance in the early stages of epidemics is of particular interest.  
@@ -77,7 +173,29 @@ I will use both publicly available empirical data and simulated epidemics to ass
 \newpage
 # Methods
 
-The package *epitrix* is first used to obtain the shape and scale of a Gamma distribution of a disease based on daily incidence data. The information on the distribution of the serial interval and the data on daily incidence is then fed into the package *earlyR*. *earlyR* can estimate the real-time reproduction number for the given data and serial interval. Finally, the information on the incidence data, serial interval, and real-time reproduction number is combined and a forecast for future incidence can be estimated with the package *projections*.   
+## Outbreak data
+Disease    | Year | Location     | Pathogen type | Transmission method | Source
+-------    | ---- | --------     | ------------- | ------------------- | ------
+Dengue     | 2011 | Fais         | virus         | vector              | outbreaks
+Dengue     | 2011 | Yap          | virus         | vector              | outbreaks
+Ebola      | 1995 | Kikwit       | virus         | contact             | outbreaks
+Influenza  | 1918 | Baltimore    | virus         | droplet             | EpiEstim
+Influenza  | 2013 | China        | virus         | droplet             | outbreaks
+Influenza  | 1978 | England      | virus         | droplet             | outbreaks
+Influenza  | 2009 | Pennsylvania | virus         | droplet             | EpiEstim
+Measles    | 1861 | Hagelloch    | virus         | aerosol             | EpiEstim/outbreaks
+MERS       | 2015 | South Korea  | virus         | droplet             | outbreaks
+Norovirus  | 2001 | Derbyshire   | virus         | faeces, fomite      | outbreaks 
+Salmonella | NA   | NA           | bacterium     | faeces, fomite      | outbreaks
+Smallpox   | 1967 | Abakaliki    | virus         | airborne            | outbreaks
+Smallpox   | 1972 | Kosovo       | virus         | airborne            | EpiEstim
+SARS       | 2003 | Canada       | virus         | droplet             | outbreaks
+SARS       | 2003 | Hong Kong    | virus         | droplet             | EpiEstim
+Zika       | 2015 | Girardot     | virus         | vector              | outbreaks
+Zika       | 2015 | San Andres   | virus         | vector              | outbreaks
+Zika       | 2007 | Yap          | virus         | vector              | outbreaks
+
+
 
 \newpage
 # Results
