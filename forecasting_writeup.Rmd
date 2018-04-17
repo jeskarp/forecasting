@@ -33,15 +33,42 @@ Personalised paragraph: packages (RECON), data sources
 \newpage
 # Introduction
 
-* In infectious disease modelling, the disease's effective reproduction number, R, is often of interest. This refers to the number of susceptible individuals that an infectious individual infects on average. 
-* Many methods have been developed for inferring R.
-* The estimate of R can vary based on the inferential method and underlying assumptions used (Harry et al. manuscript references)
-* When it comes to the real-time modelling of ongoing outbreaks, the effective reproduction number for a time window, Rt, is the calculated measure. Rt, and thus the disease incidence can be attempted to be forecasted based on previous time windows' Rt.
-* Not all methods of calculating forecasting Rt and incidence perform equally well (ref. Viboud et al. 2017).
-* During the Ebola epidemic, it was noticed that there was a lack of ready-to-use tools for forecasting epidemics due to which the R Epidemics Consortium (RECON) was formed.
-* The forecasting tools developed by members of RECON use a branching process model when forecasting future incidence. The serial interval is assumed to be Gamma-distributed.
+## Background to infectious disease modelling
+
+* In infectious disease modelling, the disease's effective reproduction number, R, is often of interest. R refers to the number of susceptible individuals that an infectious individual infects on average. In other words, it is a measure of transmissibility.
+* Why is R important to measure?
+* R is correlated with disease incidence. Disease incidence is defined as the number of new cases for a given time period.
+* Many methods have been developed for inferring R from data.
+* Bring forward examples of different R calculation methods (Harry et al. references): eigenvalue, epidemic tree...
+* The estimate of R can vary based on the inferential method and underlying assumptions used (Chowell et al. 2007; Ajelli et al. 2014).
 * Branching process models are commonly used as an alternative to compartmental models for estimating transmissibility during infectious disease outbreaks. Such approaches are now increasingly used for informing outbreak response. (from project description)
+
+## Forecasting
+
+* Why is forecasting important
+* When modelling ongoing outbreaks in real-time, the effective reproduction number for a time window, Rt, can be calculated (Wallinga \& Teunis 2004; Cori et al. 2013).
+* The aforementioned branching process model can be used to estimate Rt and attempt to forecast disease incidence based on the previous time windows' Rt (Nouvellet et al. 2017). 
+* Other forecasting methods exist, but not all methods of estimating incidence perform equally well (A summary of the RAPIDD challenge comparing the performances of the different methods: Viboud et al. 2017).
+
+## RECON forecasting tools 
+
+* During the Ebola epidemic of 2013-2016, it was noticed that there was a lack of ready-to-use tools for forecasting epidemics. This led to the birth of the R Epidemics Consortium (RECON).
+* The forecasting tools developed by RECON members use a branching process model when forecasting future incidence.
+* These tools include: *epitrix*, *earlyR*, and *projections*. 
+* Give a brief description of each package?
+* RECON's forecasting tools use a branching process model for Rt estimations and thus incidence forecasting. 
 * However, branching process models' ability to accurately predict the course of an epidemic in real time has not been evaluated. (from project description)
+
+## Aims (based on project description)
+
+* I will use both publicly available empirical data and simulated epidemics to assess the performances of currently available methods provided by the R Epidemics Consortium for forecasting disease incidence. 
+* The methods' performance in the early stages of epidemics is of particular interest.
+* The methods performances will be compared for different diseases. 
+* The impact of factors such as under-reporting, reporting delays, or super-spreading may also be considered. 
+
+\clearpage
+
+# Introduction notes
 
 ## Epidemic forecasting methods
 
@@ -165,10 +192,6 @@ Viboud et al. (2016) A generalised-growth model to characterise the early ascend
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4903879/
 Compared different outbreaks and diseases: Ebola, smallpox, influenza, HIV etc. Different outbreaks have different growth patterns - it is not always exponential. The outbreak growth pattern may even differ between locations for the same disease.  
 
-## Aims
-
-I will use both publicly available empirical data and simulated epidemics to assess the performances of currently available methods provided by the R Epidemics Consortium for forecasting incidence. The methods will be compared for different diseases. The impact of factors such as under-reporting, reporting delays, or super-spreading may also be considered. The methods' performance in the early stages of epidemics is of particular interest.  
-
 \newpage
 # Methods
 
@@ -194,7 +217,31 @@ Zika       | 2015 | Girardot     | virus         | vector              | outbrea
 Zika       | 2015 | San Andres   | virus         | vector              | outbreaks
 Zika       | 2007 | Yap          | virus         | vector              | outbreaks
 
+## Forecasting incidence
 
+### Method 1
+The outbreak incidence data portrayed as the number of cases per day was the input. The shape and scale of the Gamma distributed serial interval was calculated with the aid of the package --. A maximum likelihood estimate of the outbreak's $R$ was then estimated using the get_R function of the R package *earlyR*. The function project from the package *projections* was then used the obtain 1000 trajectories from which the incidence forecast could be constructed. This required an input consisting of the incidence data, the distribution of the serial interval, and the estimated $R$. 
+
+## Model comparison methods
+
+Inspired by Funk et al. manuscript and Viboud et al. (2017).
+
+Metrics to compare:
+
+Funk et al.
+
+* Sharpness - ability to make predictions within a narrow range of possible outcomes
+* Calibration - model's ability to correctly identify prediction uncertainty
+* Bias - does model systematically over- or underpredict data?
+* Continuous ranked probability score - combines calibration and sharpness
+
+Viboud et al. 2017
+
+* Root mean square error
+* Absolute and relative mean square errors
+* R squared - based on equation y = ax
+* Pearson's correlations between predicted and observed case incidence
+* Bias - fitted a liner regression to predicted and observed incidences (based on y = ax + b)
 
 \newpage
 # Results
