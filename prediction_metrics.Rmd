@@ -1,0 +1,206 @@
+---
+title: "Prediction Metrics"
+author: "Janetta E. Skarp"
+date: "13 April 2018"
+output: pdf_document
+fonsize: 11pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+# The data
+
+Assume that I have daily case data for an outbreak. The outbreak of choice is an H1N1 influenza outbreak in Pennsylvania in 2009 (EpiEstim). There is data for 32 days, but I will pretend that I only have data for the first 2 weeks. I assume that the data is complete and devoid of reporting delays. I am aware that this is an unrealistic expectation for real data but this assumption works for my example.
+
+```{r data}
+library(EpiEstim) # need the EpiEstim package for data
+data("Flu2009") # Load the flu data
+Flu2009 # Look at what the full dataset contains
+```
+
+Let's have a look at the incidence curve for the outbreak.
+
+```{r incidence_curve}
+library(ggplot2)
+
+# Truncate the dataset and make incidence into its own dataframe
+length_obs <- 14 # length of observation period in days
+end <- length(Flu2009$Incidence)
+
+# Convert to a dataframe for ggplot
+Flu2009_incidence <- data.frame(Flu2009$Incidence[1:length_obs]) 
+names(Flu2009_incidence) <- c("Incidence") # Rename the variable
+
+# Add a "day" column to the dataset to help plotting
+day_sequence <- seq(1, length_obs, 1)
+Flu2009_incidence$Day <- day_sequence
+
+incidence_curve <- ggplot(data = Flu2009_incidence, aes(x = Flu2009_incidence$Day, 
+                                                        y = Flu2009_incidence$Incidence)) +
+                   geom_bar(stat="identity")
+incidence_curve
+
+```
+
+\newpage
+# Estimating R
+
+Next, I'll generate a forecast so that I can assess its performance later. 
+
+The EpiEstim package provides an estimate of the serial interval Gamma distribution already so I don't need to calculate it:
+
+```{r serial_interval, echo = FALSE}
+# Make the serial interval distribution into a dataframe
+Flu2009_si <- data.frame(Flu2009$SI.Distr)
+SI_end <- length(Flu2009$SI.Distr)
+
+# Plot the serial interval
+serial_interval <- ggplot(data = Flu2009_si, aes(x = seq(1:SI_end), 
+                                                 y = Flu2009_si$Flu2009.SI.Distr)) +
+                   geom_bar(stat="identity")
+serial_interval
+
+```
+
+The mean of the distribution is 2.6 days.
+
+The standard deviation of the distribution is 1.5 days.
+
+The shift of the distribution is 1 day.
+
+I can now estimate R:
+```{r R_estimate}
+library(earlyR)
+
+# Specifying the input for the estimate
+mu <- 2.6 # serial interval mean
+sigma <- 1.5 # serial interval SD
+i <- c(Flu2009$Incidence[1:length_obs]) # incidence vector
+typeof(i)
+
+# The R estimation
+R <- get_R(as.integer(i), disease = NULL, si = NULL, si_mean = mu, si_sd = sigma, 
+           max_R = 10)
+print(R)
+
+# Visualising R
+plot(R)
+plot(R, "lambdas")
+abline(v = max(Flu2009_incidence$Day), lty = 2)
+
+```
+
+The dotted lines in the global force of infection plot show the current date (i.e. last date observed). There is still a possibility of a new transmission event occurring. 
+
+\newpage
+# Incidence forecasting
+
+Now that I know what's happening with the effective reproduction number, I can forecast into the future to predict what will happen next.
+
+The *projections* package will not work unless you feed incidence to it as an incidence object (using the package *incidence*), so I'll need to re-make my daily incidence:
+```{r redo_incidence}
+library(incidence)
+
+Flu2009_incidence # what I'll be converting to an incidence object
+
+# Need to open up the incidence so that there's only 1 individual per row with
+# their date of becoming a case (assume date of onset is the case date)
+Flu2009_infday <- array(NA, dim = c(sum(Flu2009_incidence$Incidence)))
+
+for (i in 1:nrow(Flu2009_incidence)) {
+  if (Flu2009_incidence$Incidence[i] > 0) {
+    # create an array for the number of individuals who have the same date of infection
+    number_cases <- array(Flu2009_incidence$Day[i], 
+                          dim = c(Flu2009_incidence$Incidence[i])) 
+    # calculate where in the new array the cases for day i should be added to
+    addition_point <- sum(Flu2009_incidence$Incidence[0:(i-1)]) + 1 
+    # add the cases for day i to the big array
+    Flu2009_infday[(addition_point):(addition_point+length(number_cases)-1)] <- Flu2009_incidence$Day[i] 
+  }
+}
+
+Flu2009_infday # The current shape of incidence
+
+# Now convert this "line list" into an incidence object
+Flu2009_newinc <- incidence(dates = as.numeric(Flu2009_infday), interval = 1)
+plot(Flu2009_newinc)
+```
+
+```{r forecast}
+library(projections)
+
+# number of days that I hid data for
+hidden_days <- end - length_obs
+
+# Projections with 1000 trajectories for the next 18 days
+# Serial interval distribution already provided with the EpiEstim data
+proj <- project(Flu2009_newinc, R = sample_R(R, 1000), si = Flu2009$SI.Distr, 
+                n_sim = 10000, n_days = hidden_days, R_fix_within = TRUE)
+
+# Make a data frame of the hidden data for comparison when plotting
+Flu2009_incidence_hidden <- data.frame(Flu2009$Incidence[length_obs + 1:end])
+Flu2009_incidence_hidden <- data.frame(Flu2009_incidence_hidden[1:hidden_days, ])
+names(Flu2009_incidence_hidden) <- c("Incidence") # Rename the variable
+Flu2009_incidence_hidden$Day <- seq((length_obs + 1), end, 1)
+
+# Look at prediction quantiles
+apply(proj, 1, summary)
+
+# Look at how the mean develops
+apply(proj, 1, function(x) mean(x > 0))
+
+# Plot the projection
+plot(proj, c(.1, .9)) +
+  # Add a line showing the actual incidence for days 15-32
+  geom_line(aes(x = Day, y = Incidence), Flu2009_incidence_hidden)
+
+```
+
+According to the predictions, it looks like the outbreak incidence will be increasing over the next 18 days. The uncertainty around the prediction estimates increases as the forecast moves further into the future. Compared to the true incidence (black line), the forecast stays near the prediction for around 3 days, after which the prediction starts to grossly overestimate incidence.
+
+# Assessing prediction performance
+
+As done by Funk et al. 
+
+## Calibration
+Calibration relates to the model's ability to correctly identify prediction uncertainty. Calibration needs to be assessed before sharpness.
+
+If the model is perfectly calibrated, each time point's data looks as if it comes from the predictive probability distribution (the distribution of possible unobserved values conditional on the observed values) for that time point:
+
+$$ u_{t} = F_{t}(x_{t}) $$
+Here $x_{t}$ is the datapoint for time $t$. $F_{t}$ is the cumulative probability distribution at time $t$. $u_{t}$ is the probability.
+
+In my case the predictions should follow a Poisson-distribution with some lambda, $\lambda$. I then use my hidden data as the true data points, $x_{t}$.
+
+The Anderson-Darling test (a statistical test for seeing if the data is drawn from a given probability distribution) of uniformity to $u_{t}$ is applied. The model is calibrated if p > 0.1.
+
+```{r calibration}
+# The datapoints: x_t
+x_t <- Flu2009_incidence_hidden$Incidence
+
+# The cumulative probability distribution for time t: F_t
+# I need to know the R*lambda value used for the prediction at each timepoint
+
+# Maybe I can use the 1000 trajectories' predictions as a proxy
+day_15 <- data.frame(proj[1, ]) # predictions for day 15
+names(day_15) <- c("cases") # Rename the variable
+pred_day_15 <- qplot(day_15$cases, geom="histogram",
+                     binwidth = 0.5)
+pred_day_15 # distribution for day 15
+# The central limit theorem might actually be a problem here
+
+# Calculate u_t for each timepoint t
+
+```
+
+## Sharpness
+Model's ability to make predictions within a narrow range of possible outcomes
+
+## Bias
+Does model systematically over- or underpredict data?
+
+## Continuous ranked probability score
+Combines calibration and sharpness
