@@ -135,10 +135,12 @@ library(projections)
 # number of days that I hid data for
 hidden_days <- end - length_obs
 
-# Projections with 1000 trajectories for the next 18 days
+# Number of trajectories for the projection
+n_traj <- 10000 
+
 # Serial interval distribution already provided with the EpiEstim data
 proj <- project(Flu2009_newinc, R = sample_R(R, 1000), si = Flu2009$SI.Distr, 
-                n_sim = 10000, n_days = hidden_days, R_fix_within = TRUE)
+                n_sim = n_traj, n_days = hidden_days, R_fix_within = TRUE)
 
 # Make a data frame of the hidden data for comparison when plotting
 Flu2009_incidence_hidden <- data.frame(Flu2009$Incidence[length_obs + 1:end])
@@ -178,29 +180,118 @@ In my case the predictions should follow a Poisson-distribution with some lambda
 The Anderson-Darling test (a statistical test for seeing if the data is drawn from a given probability distribution) of uniformity to $u_{t}$ is applied. The model is calibrated if p > 0.1.
 
 ```{r calibration}
-# The datapoints: x_t
+library("goftest")
+
+# The true datapoints: x_t
 x_t <- Flu2009_incidence_hidden$Incidence
 
 # The cumulative probability distribution for time t: F_t
-# I need to know the R*lambda value used for the prediction at each timepoint
+cumulative_poisson <- function(data, pred){
+  ppois(data, mean(pred))
+}
 
-# Maybe I can use the 1000 trajectories' predictions as a proxy
-day_15 <- data.frame(proj[1, ]) # predictions for day 15
-names(day_15) <- c("cases") # Rename the variable
-pred_day_15 <- qplot(day_15$cases, geom="histogram",
-                     binwidth = 0.5)
-pred_day_15 # distribution for day 15
-# The central limit theorem might actually be a problem here
+# Calculating calibration for each prediction day
+calibration <- function(data, pred){
+  calibration <- array(NA, dim = c(hidden_days))
+  for (i in 1:hidden_days){
+    calibration[i] <- cumulative_poisson(data[i], pred[i, ])
+  }
+  return(calibration)
+}
 
-# Calculate u_t for each timepoint t
+# anderson-darling <- function(data, pred){
+#   anderson-darling <- array(NA, dim = c(hidden_days))
+#   for (i in 1:hidden_days){
+#   ad.test()
+#   }
+#   return(anderson-darling)
+# }
+
+model_calibration <- calibration(x_t, proj)
 
 ```
 
+```{r plot_calibration, echo = FALSE}
+calibration_days <- seq(1, hidden_days, 1)
+calibration_data <- data.frame(model_calibration)
+calibration_data$days <- calibration_days
+
+plot_calibration <- ggplot(data = calibration_data, aes(x = days, 
+                                                        y = model_calibration)) +
+                           geom_point(size = 2, shape = 16) 
+plot_calibration
+
+```
+
+The model is kind of calibrated for the first 3 days (also intuitively seen in the previous plot), but after that calibration drops.
+
 ## Sharpness
-Model's ability to make predictions within a narrow range of possible outcomes
+Model's ability to make predictions within a narrow range of possible outcomes. 
+
+Sharpness is calculated as follows:
+
+$$ S_{t}(F_{t}) = 1 - \frac{MADM(y)}{m(y)} $$
+where y is the prediction variable. MADM stands for the normalised median absolute deviation around the median (m(y)) of y:
+
+$$ MADM(y) = m(|y - m(y)|) $$
+The closer to 1 S is, the sharper the forecast.
+
+```{r sharpness, cache = TRUE}
+# Function for calculating forecasted incidence median
+forecast_median <- function(x){
+  return(median(x))
+}
+
+# Function for calculating the standard deviations
+# Want it to return MADM(y)
+MADM <- function(x){
+  traj_diff <- array(NA, dim = c(n_traj)) # array for storing SDs
+  # For each trajectory for this day, calculate the SD
+  for (i in 1:n_traj){
+    absolute_diff <-  abs(x[i] - forecast_median(x))
+    # save the absolute difference for each trajectory
+    traj_diff[i] <- absolute_diff
+  }
+  MADM <- median(traj_diff)
+  return(MADM)
+}
+
+# Function for calculating the normalised median absolute deviation
+# Want it to return St(Ft)
+sharpness <- function(x){
+  # array for storing daily sharpness
+  sharpness <- array(NA, dim = c(hidden_days))
+  for (i in 1:hidden_days){
+    sharpness_day <- 1 - (MADM(x[i, ]) / forecast_median(x[i, ])) 
+    sharpness[i] <- sharpness_day
+  }
+  return(sharpness)
+}
+
+model_sharpness <- sharpness(proj)
+
+```
+
+```{r plot_sharpness, echo = FALSE}
+sharpness_days <- seq(1, hidden_days, 1)
+sharpness_data <- data.frame(model_sharpness)
+sharpness_data$days <- sharpness_days
+
+plot_sharpness <- ggplot(data = sharpness_data, aes(x = days, 
+                                                    y = model_sharpness)) +
+                           geom_point(size = 2, shape = 16) 
+plot_sharpness
+
+```
+
+Model sharpness decreases as you forecast further. Remember, S = 1 is perfect sharpness.
 
 ## Bias
 Does model systematically over- or underpredict data?
+
+If unbiased, half of forecasts would be above estimate and half would be below the estimate, thus $B_{t}$ would be 0. A completely biased model would either be completely above the prediction line ($B_{t} = 1$) or completely under the prediction line ($B_{t} = -1$).
+
+The Heaviside function which takes a value of 0 for a negative number and 1 for a positive number.
 
 ## Continuous ranked probability score
 Combines calibration and sharpness
