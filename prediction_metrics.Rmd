@@ -163,11 +163,10 @@ plot(proj, c(.1, .9)) +
 
 According to the predictions, it looks like the outbreak incidence will be increasing over the next 18 days. The uncertainty around the prediction estimates increases as the forecast moves further into the future. Compared to the true incidence (black line), the forecast stays near the prediction for around 3 days, after which the prediction starts to grossly overestimate incidence.
 
+\newpage
 # Assessing prediction performance
 
-As done by Funk et al. 
-
-## Calibration
+## Calibration (Funk et al.)
 Calibration relates to the model's ability to correctly identify prediction uncertainty. Calibration needs to be assessed before sharpness.
 
 If the model is perfectly calibrated, each time point's data looks as if it comes from the predictive probability distribution (the distribution of possible unobserved values conditional on the observed values) for that time point:
@@ -180,7 +179,7 @@ In my case the predictions should follow a Poisson-distribution with some lambda
 The Anderson-Darling test (a statistical test for seeing if the data is drawn from a given probability distribution) of uniformity to $u_{t}$ is applied. The model is calibrated if p > 0.1.
 
 ```{r calibration}
-library("goftest")
+# library("goftest")
 
 # The true datapoints: x_t
 x_t <- Flu2009_incidence_hidden$Incidence
@@ -225,7 +224,8 @@ plot_calibration
 
 The model is kind of calibrated for the first 3 days (also intuitively seen in the previous plot), but after that calibration drops.
 
-## Sharpness
+\newpage
+## Sharpness (Funk et al.)
 Model's ability to make predictions within a narrow range of possible outcomes. 
 
 Sharpness is calculated as follows:
@@ -286,12 +286,248 @@ plot_sharpness
 
 Model sharpness decreases as you forecast further. Remember, S = 1 is perfect sharpness.
 
-## Bias
+\newpage
+## Bias (Funk et al.)
 Does model systematically over- or underpredict data?
+
+Bias can be calculated as:
+
+$$ B_{t}(F_{t}, x_{t}) = 2(E_{F_{t}}[H(X - x_{t})] - 0.5) $$
+
+Where $E_{F_{t}}$ refers to the expectation with respect to the predictive cumulative probability distribution $F_{t}$, and $X$ are independent realisations of a variable with distribution $F_{t}$
 
 If unbiased, half of forecasts would be above estimate and half would be below the estimate, thus $B_{t}$ would be 0. A completely biased model would either be completely above the prediction line ($B_{t} = 1$) or completely under the prediction line ($B_{t} = -1$).
 
-The Heaviside function which takes a value of 0 for a negative number and 1 for a positive number.
+The Heaviside function takes a value of 0 for a negative number and 1 for a positive number. A Heaviside function with the half-maximum convention is 0.5 for H(0)
 
-## Continuous ranked probability score
-Combines calibration and sharpness
+```{r bias}
+# Calculate the difference between datapoints
+# Feed in the true datapoint and predictions for a given time t
+difference <- function(data, pred){
+    # Calculate difference between data point and sample
+  difference <- array(NA, dim = c(n_traj))
+  for (i in 1:n_traj){
+    difference[i] <- pred[i] - data
+  }
+  return(difference)
+}
+
+# Do the Heaviside function with half-maximum convention
+# Feed in the differences between the predictions and true values for a given time t
+heaviside <- function(difference){
+  heaviside <- array(NA, dim = c(n_traj))
+  for (i in 1:n_traj){
+    if (difference[i] > 0){
+      heaviside[i] <- 1
+    } else if (difference[i] < 0){
+      heaviside[i] <- 0
+    } else{
+      heaviside[i] <- 0.5
+    }
+  }
+  return(heaviside)
+}
+
+# Calculate the expected prediction value for a given time t
+expected <- function(h_values, pred){
+  mean_heaviside <- mean(h_values)
+  return(mean_heaviside)
+}
+
+# Calculate bias
+bias <- function(data, pred){
+  bias <- array(NA, dim = c(hidden_days))
+  for (i in 1:hidden_days){
+  bias[i] <- 2 * (expected(heaviside(difference(data[i], pred[i, ])), pred) - 0.5)
+  }
+  return(bias)
+}
+
+# Get single bias score
+bias_score <- function(data, pred){
+  daily_bias <- bias(data, pred)
+  bias_score <- sum(daily_bias) / hidden_days
+  return(bias_score)
+}
+
+model_bias <- bias(x_t, proj)
+
+print(paste("The bias score is", bias_score(x_t, proj)))
+
+```
+```{r plot_bias, echo = FALSE}
+bias_days <- seq(1, hidden_days, 1)
+bias_data <- data.frame(model_bias)
+bias_data$days <- bias_days
+
+plot_bias <- ggplot(data = bias_data, aes(x = days, 
+                                          y = model_bias)) +
+                           geom_point(size = 2, shape = 16) 
+plot_bias
+
+```
+
+The model tends to over-predict the number of cases (positive bias?).
+
+\newpage
+## Continuous ranked probability score (Funk et al.)
+An evaluation method that combines calibration and sharpness. Assesses whether the predictive distribution and the data-generating distribution are the same. In a perfect scenario, CRPS is 0.
+
+Not sure if this equation for calculating CRPS only applies to deterministic forecasts:
+
+$$ CRPS(F_{t}, x_{t}) = E_{F_{t}} | X - x_{t} | - \frac{1}{2} E_{F_{t}} | X - X' | $$
+
+where $X$ is a sample of the predicted number of cases for a given timepoint from predictive distribution $F_{t}$, $x_{t}$ is the observed number of cases for that timepoint, and $X'$ is also a sample of the predicted number of cases, but independent of $X$. 
+
+There's a package called *scoringRules* for evaluating forecasts?
+
+```{r CRPS, cache = TRUE}
+absolute_diff <- function(single_x, vector_x){
+  absolute_diff <- array(NA, dim = c(length(vector_x)))
+  for (i in 1:length(vector_x)){
+  absolute_diff[i] <- abs(single_x - vector_x[i])
+  }
+  return(absolute_diff)
+}
+
+expected_diff <- function(single_x, vector_x){
+  difference <- absolute_diff(single_x, vector_x)
+  expectation <- mean(difference)
+  return(expectation)
+}
+
+expected_diff_pred <- function(vector_x){
+  # absolute_diff <- abs(apply(combn(vector_x, 2), 2, diff)) # much slower
+  absolute_diff <- as.numeric(dist(vector_x))
+  expectation <- mean(absolute_diff)
+  return(expectation)
+}
+
+crps <- function(data, pred){
+  crps <- array(NA, dim = c(length(data)))
+  for (i in 1:length(data)){
+  crps[i] <- expected_diff(data[i], pred[i, ]) - 0.5 * expected_diff_pred(pred[i, ])
+  }
+  return(crps)
+}
+
+model_crps <- crps(x_t, proj)
+
+```
+
+```{r plot_crps, echo = FALSE}
+crps_days <- seq(1, hidden_days, 1)
+crps_data <- data.frame(model_crps)
+crps_data$days <- crps_days
+
+plot_crps <- ggplot(data = crps_data, aes(x = days, 
+                                          y = model_crps)) +
+                           geom_point(size = 2, shape = 16) 
+plot_crps
+
+```
+
+CRPS increases as forecasts are further away from the current date. There's a clear jump after the third forecast day, this coincides with the true data not being within the scope of the confidence intervals of the prediction seen in the prediction plot.
+
+\newpage
+## Root mean square error (Viboud et al. 2017)
+The sample standard deviation of the differences between predicted and observed values.
+
+```{r RMSE}
+# Calculate squared difference between true data and prediction for a given timepoint
+squared_diff <- function(data, pred){
+  squared_diff <- array(NA, dim = c(length(pred)))
+  for (i in 1:length(pred)){
+  squared_diff[i] <- (data - pred[i])^2
+  }
+  return(squared_diff)
+}
+
+# Take the mean of the squared differences
+mean_squared_diff <- function(data, pred){
+  mean_squared_diff <- sum(squared_diff(data, pred)) / length(pred)
+  return(mean_squared_diff)
+}
+
+# Calculates RMSE for each forecasted timepoint
+rmse <- function(data, pred){
+  rmse <- array(NA, dim = c(length(data)))
+  for (i in 1:length(data)){
+    rmse[i] <- sqrt(mean_squared_diff(data[i], pred[i, ]))
+  }
+  return(rmse)
+}
+
+model_rmse <- rmse(x_t, proj)
+
+```
+
+```{r plot_rmse, echo = FALSE}
+rmse_days <- seq(1, hidden_days, 1)
+rmse_data <- data.frame(model_rmse)
+rmse_data$days <- rmse_days
+
+plot_rmse <- ggplot(data = rmse_data, aes(x = days, 
+                                          y = model_rmse)) +
+                           geom_point(size = 2, shape = 16) 
+plot_rmse
+
+```
+
+\newpage
+## Mean absolute error (Viboud et al. 2017)
+```{r MAE}
+# Calculate the absolute difference
+absolute_diff <- function(data, pred){
+  absolute_diff <- array(NA, dim = c(length(pred)))
+  for (i in 1:length(pred)){
+  absolute_diff[i] <- abs(data - pred[i])
+  }
+  return(absolute_diff)
+}
+
+# Take the mean of the absolute differences
+mean_absolute_diff <- function(data, pred){
+  mean_absolute_diff <- sum(absolute_diff(data, pred)) / length(pred)
+  return(mean_absolute_diff)
+}
+
+# Calculate MAE for each forecasted timepoint
+mae <- function(data, pred){
+  mae <- array(NA, dim = c(length(data)))
+  for (i in 1:length(data)){
+    mae[i] <- mean_absolute_diff(data[i], pred[i, ])
+  }
+  return(mae)
+}
+
+model_mae <- mae(x_t, proj)
+
+```
+
+```{r plot_mae, echo = FALSE}
+mae_days <- seq(1, hidden_days, 1)
+mae_data <- data.frame(model_mae)
+mae_data$days <- mae_days
+
+plot_mae <- ggplot(data = mae_data, aes(x = days, 
+                                        y = model_mae)) +
+                           geom_point(size = 2, shape = 16) 
+plot_mae
+
+```
+
+\newpage
+## Relative mean square error (Viboud et al. 2017)
+Not quite sure what this is and how it differs from the other errors
+
+## R squared (Viboud et al. 2017)
+Based on y = ax
+Plot predicted vs. observed and see how much variation is explained by linear model.
+But should I use an adjusted R squared instead of just the normal one?
+
+## Pearson's correlation between predicted and observed incidence (Viboud et al. 2017)
+
+## Bias (Viboud et al. 2017)
+Fitting a linear regression to predicted and observed incidence, y = ax + b
+Then again, I already have a method for measuring bias. 
