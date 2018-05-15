@@ -196,26 +196,29 @@ Compared different outbreaks and diseases: Ebola, smallpox, influenza, HIV etc. 
 # Methods
 
 ## Outbreak data
-Disease    | Year | Location     | Pathogen type | Transmission method | Source
--------    | ---- | --------     | ------------- | ------------------- | ------
-Dengue     | 2011 | Fais         | virus         | vector              | outbreaks
-Dengue     | 2011 | Yap          | virus         | vector              | outbreaks
-Ebola      | 1995 | Kikwit       | virus         | contact             | outbreaks
-Influenza  | 1918 | Baltimore    | virus         | droplet             | EpiEstim
-Influenza  | 2013 | China        | virus         | droplet             | outbreaks
-Influenza  | 1978 | England      | virus         | droplet             | outbreaks
-Influenza  | 2009 | Pennsylvania | virus         | droplet             | EpiEstim
-Measles    | 1861 | Hagelloch    | virus         | aerosol             | EpiEstim/outbreaks
-MERS       | 2015 | South Korea  | virus         | droplet             | outbreaks
-Norovirus  | 2001 | Derbyshire   | virus         | faeces, fomite      | outbreaks 
-Salmonella | NA   | NA           | bacterium     | faeces, fomite      | outbreaks
-Smallpox   | 1967 | Abakaliki    | virus         | airborne            | outbreaks
-Smallpox   | 1972 | Kosovo       | virus         | airborne            | EpiEstim
-SARS       | 2003 | Canada       | virus         | droplet             | outbreaks
-SARS       | 2003 | Hong Kong    | virus         | droplet             | EpiEstim
-Zika       | 2015 | Girardot     | virus         | vector              | outbreaks
-Zika       | 2015 | San Andres   | virus         | vector              | outbreaks
-Zika       | 2007 | Yap          | virus         | vector              | outbreaks
+
+Note that the "Number of days" column is my estimation for how long the period of time of observation was. Those days can contain missing data. 
+
+Disease    | Year | Location     | Number of days | Pathogen type | Transmission method | Source
+-------    | ---- | --------     | -------------- | ------------- | ------------------- | ------
+Dengue     | 2011 | Fais         | 57             | virus         | vector              | outbreaks
+Dengue     | 2011 | Yap          | 185            | virus         | vector              | outbreaks
+Ebola      | 1995 | Kikwit       | 192            | virus         | contact             | outbreaks
+Influenza  | 1918 | Baltimore    | 92             | virus         | droplet             | EpiEstim
+Influenza  | 2013 | China        | 136            | virus         | droplet             | outbreaks
+Influenza  | 1978 | England      | 14             | virus         | droplet             | outbreaks
+Influenza  | 2009 | Pennsylvania | 32             | virus         | droplet             | EpiEstim
+Measles    | 1861 | Hagelloch    | 48             | virus         | aerosol             | EpiEstim/outbreaks
+MERS       | 2015 | South Korea  | 35             | virus         | droplet             | outbreaks
+Norovirus  | 2001 | Derbyshire   | 28             | virus         | faeces, fomite      | outbreaks 
+Salmonella | NA   | NA           | 56?            | bacterium     | faeces, fomite      | outbreaks
+Smallpox   | 1967 | Abakaliki    | 86             | virus         | airborne            | outbreaks
+Smallpox   | 1972 | Kosovo       | 57             | virus         | airborne            | EpiEstim
+SARS       | 2003 | Canada       | 109            | virus         | droplet             | outbreaks
+SARS       | 2003 | Hong Kong    | 107            | virus         | droplet             | EpiEstim
+Zika       | 2015 | Girardot     | 95             | virus         | vector              | outbreaks
+Zika       | 2015 | San Andres   | 146            | virus         | vector              | outbreaks
+Zika       | 2007 | Yap          | 196            | virus         | vector              | outbreaks
 
 ## Forecasting incidence
 
