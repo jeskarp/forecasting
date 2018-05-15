@@ -95,6 +95,21 @@ abline(v = max(Flu2009_incidence$Day), lty = 2)
 
 The dotted lines in the global force of infection plot show the current date (i.e. last date observed). There is still a possibility of a new transmission event occurring. 
 
+I can also estimate R with the EpiEstim package:
+```{r epiestim_R_estimate}
+library(EpiEstim)
+
+# Specifying the input for the estimate
+mu <- 2.6 # serial interval mean
+sigma <- 1.5 # serial interval SD
+i <- c(Flu2009$Incidence[1:length_obs]) # incidence vector
+
+# T.Start and T.End should be vectors of of time periods for which R should be estimated
+epiestim_R <- EstimateR(i, T.Start = c(2, 9), T.End = c(8, 14), method = c("ParametricSI"), Mean.SI = mu, Std.SI = sigma)
+
+
+```
+
 \newpage
 # Incidence forecasting
 
@@ -123,6 +138,11 @@ for (i in 1:nrow(Flu2009_incidence)) {
 }
 
 Flu2009_infday # The current shape of incidence
+
+library(incidence)
+Flu2009_newinc <- as.incidence(c(Flu2009_incidence$Incidence)) # The data that you pretend you actually have
+
+plot(Flu2009_newinc)
 
 # Now convert this "line list" into an incidence object
 Flu2009_newinc <- incidence(dates = as.numeric(Flu2009_infday), interval = 1)
@@ -370,6 +390,51 @@ plot_bias
 The model tends to over-predict the number of cases (positive bias?).
 
 \newpage
+## Root mean square error (Viboud et al. 2017)
+The sample standard deviation of the differences between predicted and observed values.
+
+```{r RMSE}
+# Calculate squared difference between true data and prediction for a given timepoint
+squared_diff <- function(data, pred){
+  squared_diff <- array(NA, dim = c(length(pred)))
+  for (i in 1:length(pred)){
+  squared_diff[i] <- (data - pred[i])^2
+  }
+  return(squared_diff)
+}
+
+# Take the mean of the squared differences
+mean_squared_diff <- function(data, pred){
+  mean_squared_diff <- sum(squared_diff(data, pred)) / length(pred)
+  return(mean_squared_diff)
+}
+
+# Calculates RMSE for each forecasted timepoint
+rmse <- function(data, pred){
+  rmse <- array(NA, dim = c(length(data)))
+  for (i in 1:length(data)){
+    rmse[i] <- sqrt(mean_squared_diff(data[i], pred[i, ]))
+  }
+  return(rmse)
+}
+
+model_rmse <- rmse(x_t, proj)
+
+```
+
+```{r plot_rmse, echo = FALSE}
+rmse_days <- seq(1, hidden_days, 1)
+rmse_data <- data.frame(model_rmse)
+rmse_data$days <- rmse_days
+
+plot_rmse <- ggplot(data = rmse_data, aes(x = days, 
+                                          y = model_rmse)) +
+                           geom_point(size = 2, shape = 16) 
+plot_rmse
+
+```
+
+\newpage
 ## Continuous ranked probability score (Funk et al.)
 An evaluation method that combines calibration and sharpness. Assesses whether the predictive distribution and the data-generating distribution are the same. In a perfect scenario, CRPS is 0.
 
@@ -430,51 +495,6 @@ plot_crps
 CRPS increases as forecasts are further away from the current date. There's a clear jump after the third forecast day, this coincides with the true data not being within the scope of the confidence intervals of the prediction seen in the prediction plot.
 
 \newpage
-## Root mean square error (Viboud et al. 2017)
-The sample standard deviation of the differences between predicted and observed values.
-
-```{r RMSE}
-# Calculate squared difference between true data and prediction for a given timepoint
-squared_diff <- function(data, pred){
-  squared_diff <- array(NA, dim = c(length(pred)))
-  for (i in 1:length(pred)){
-  squared_diff[i] <- (data - pred[i])^2
-  }
-  return(squared_diff)
-}
-
-# Take the mean of the squared differences
-mean_squared_diff <- function(data, pred){
-  mean_squared_diff <- sum(squared_diff(data, pred)) / length(pred)
-  return(mean_squared_diff)
-}
-
-# Calculates RMSE for each forecasted timepoint
-rmse <- function(data, pred){
-  rmse <- array(NA, dim = c(length(data)))
-  for (i in 1:length(data)){
-    rmse[i] <- sqrt(mean_squared_diff(data[i], pred[i, ]))
-  }
-  return(rmse)
-}
-
-model_rmse <- rmse(x_t, proj)
-
-```
-
-```{r plot_rmse, echo = FALSE}
-rmse_days <- seq(1, hidden_days, 1)
-rmse_data <- data.frame(model_rmse)
-rmse_data$days <- rmse_days
-
-plot_rmse <- ggplot(data = rmse_data, aes(x = days, 
-                                          y = model_rmse)) +
-                           geom_point(size = 2, shape = 16) 
-plot_rmse
-
-```
-
-\newpage
 ## Mean absolute error (Viboud et al. 2017)
 ```{r MAE}
 # Calculate the absolute difference
@@ -522,12 +542,18 @@ plot_mae
 Not quite sure what this is and how it differs from the other errors
 
 ## R squared (Viboud et al. 2017)
-Based on y = ax
-Plot predicted vs. observed and see how much variation is explained by linear model.
-But should I use an adjusted R squared instead of just the normal one?
+
+* Based on y = ax
+* Plot predicted vs. observed and see how much variation is explained by linear model.
+* Wouldn't I need just one estimate for the prediction here?
+* But should I use an adjusted R squared instead of just the normal one?
 
 ## Pearson's correlation between predicted and observed incidence (Viboud et al. 2017)
 
+* Another measure of linear correlation 
+* Total linear correlation is indicated by +1 (positive) and -1 (negative).
+
 ## Bias (Viboud et al. 2017)
-Fitting a linear regression to predicted and observed incidence, y = ax + b
-Then again, I already have a method for measuring bias. 
+
+* Fitting a linear regression to predicted and observed incidence, y = ax + b
+* Then again, I already have a method for measuring bias. 
