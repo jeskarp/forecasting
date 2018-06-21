@@ -220,10 +220,95 @@ Zika       | 2015 | Girardot     | 95             | virus         | vector      
 Zika       | 2015 | San Andres   | 146            | virus         | vector              | outbreaks
 Zika       | 2007 | Yap          | 196            | virus         | vector              | outbreaks
 
+## The real outbreak candidates
+
+For each of these outbreaks, I need to figure out what control measures were implemented and when.
+
+* Dengue in Yap (2011)
+
+978 cases over 225 days. The interval for incidence is daily. The estimates of generation time vary:
+https://academic.oup.com/mbe/article/20/10/1650/1164131
+https://onlinelibrary.wiley.com/doi/full/10.1111/j.1365-3156.2009.02277.x
+
+```{r dengue, echo = FALSE}
+library(outbreaks)
+library(incidence)
+
+# Compute daily incidence
+dengue_yap_incidence <- as.incidence(dengue_yap_2011$value, dates = dengue_yap_2011$onset_date, interval = 1)
+plot(dengue_yap_incidence)
+```
+
+* Ebola in Kikwit (1995)
+
+292 cases over 192 days. The interval used for calculating incidence is 1 day.
+
+```{r ebola, echo = FALSE}
+library(outbreaks)
+library(incidence)
+
+# Compute daily incidence
+ebola_kikwit_incidence <- as.incidence(ebola_kikwit_1995$onset, dates = ebola_kikwit_1995$date, interval = 1)
+plot(ebola_kikwit_incidence)
+
+```
+
+* Influenza in China (2013)
+
+126 cases over 159 days with a time interval of 1 day.
+
+```{r influenza, echo = FALSE}
+library(outbreaks)
+library(incidence)
+
+# Compute daily incidence
+influenza_china_incidence <- incidence(fluH7N9_china_2013$date_of_onset, interval = 1)
+plot(influenza_china_incidence)
+
+```
+
+* SARS in Hong Kong (2003)
+
+```{r sars}
+library(EpiEstim)
+library(incidence)
+
+# Download the SARS data
+data("SARS2003")
+# SARS dat download not working
+
+# Compute daily incidence
+# sars_hongkong_incidence <- as.incidence(ebola_kikwit_1995$onset, dates = ebola_kikwit_1995$date, interval = 1)
+# print(ebola_kikwit_incidence)
+# plot(ebola_kikwit_incidence)
+
+```
+
+* Zika in Yap (2007)
+
+108 cases over 20 weeks, the time interval is in weeks.
+
+```{r zika, echo = FALSE}
+library(outbreaks)
+library(incidence)
+
+# Compute weekly incidence
+zika_yap_incidence <- as.incidence(zika_yap_2007$value, dates = zika_yap_2007$onset_date, interval = 7)
+plot(zika_yap_incidence)
+
+```
+
 ## Forecasting incidence
 
 ### Method 1
 The outbreak incidence data portrayed as the number of cases per day was the input. The shape and scale of the Gamma distributed serial interval was calculated with the aid of the package --. A maximum likelihood estimate of the outbreak's $R$ was then estimated using the get_R function of the R package *earlyR*. The function project from the package *projections* was then used the obtain 1000 trajectories from which the incidence forecast could be constructed. This required an input consisting of the incidence data, the distribution of the serial interval, and the estimated $R$. 
+
+## Predictions to try out
+
+* Need a minimum number of 10 cases before you can make a prediction. Calculate how many cases you are basing each prediction on.
+* Also split cases based on the generation time (approximated by serial interval).
+* Try different serial intervals to a given dataset: make serial interval out of the dataset itself but also estimate from different outbreaks
+* Try different R estimation methods
 
 ## Model comparison methods
 
