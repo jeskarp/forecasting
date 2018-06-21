@@ -1,0 +1,195 @@
+---
+title: "Prediction metrics for simulations"
+author: "Janetta E. Skarp"
+date: "21 June 2018"
+output: pdf_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, eval = FALSE}
+# Install the most up-to-date versions of each package
+drat::addRepo("reconhub")
+install.packages(c("outbreaks", "incidence", "epicontacts", "epitrix", "earlyR", "EpiEstim"))
+```
+
+# Simulated data
+
+The prediction performance metrics' meaning is easiest to quantify through using simulations.
+
+```{r stoch_sim, include = FALSE, eval = FALSE}
+# Here is a compartmental stochastic SIR model with which one can simulate data.
+# Input values for SIR
+
+# Time
+timestep <- 1
+end <- 100
+times <- seq(0, end, by = timestep)
+
+# Initial population: N-I susceptible, I infectious, 0 recovered
+N <- 1000
+start_I <- 1
+
+init.values = c(
+  S = N-start_I,
+  I = start_I,
+  R = 0
+)
+
+# Beta & gammma
+R0 <- 1.5 # R0 = beta*N/gamma
+gamma <- 0.15
+beta <- R0*gamma/N
+# print(beta)
+
+# The SIR model
+
+# Array for holding collective disease status information for whole period of time
+data <- array(0, dim =c(length(times), length(init.values) + 3))
+data[, 1] <- times # make first column the timesteps to make plotting easier later on
+
+n_sim = 100 # number of simulations
+
+simulation_incidence <- data.frame(date = times)
+
+for (i in 1:n_sim){
+  set.seed(i)
+
+  # For loops for calculating the numbers susceptible, infected, and recovered at each timepoint
+  for (time in times){
+    if (time == 0){ # Set up the number of S/I/R at time 0
+      data[1, 2] <- init.values["S"] # number of susceptibles at time 0
+      data[1, 3] <- init.values["I"] # number of infecteds at time 0
+      data[1, 4] <- init.values["R"] # number of recovereds at time 0
+      data[1, 5] <- init.values["I"] # number newly infected at time 0
+      data[1, 6] <- init.values["R"] # number newly recovered at time 0
+    
+    } else{
+      whole_time <- 1/timestep * time # makes time into the whole number that it corresponds to in the array
+    
+      inf <- rbinom(1, size = data[whole_time, 2], (1-(exp((-beta) * data[whole_time, 3] * timestep)))) # number who become infected in this timestep
+      rec <- rbinom(1, size = data[whole_time, 3], (1-(exp((-gamma) * timestep)))) # number who become recovered in this timestep
+    
+      data[whole_time+1, 2] <- data[whole_time, 2] - inf # number of susceptibles at next timestep
+      data[whole_time+1, 3] <- data[whole_time, 3]  + inf - rec # number of infecteds at next timestep
+      data[whole_time+1, 4] <- data[whole_time, 4] + rec # number of recovereds at next timestep
+      data[whole_time+1, 5] <- data[whole_time+1, 3] - data[whole_time, 3] + data[whole_time+1, 4] - data[whole_time, 4] # number of newly infected
+      data[whole_time+1, 6] <- data[whole_time+1, 4] - data[whole_time, 4] # number of newly recovered
+    }
+  }
+  # Rename column to reflect the 100 different simulations' incidences - eg. cases_1, cases_2
+  simulation_incidence <- cbind(simulation_incidence, data[ , 5])
+  names(simulation_incidence)[names(simulation_incidence) == "data[, 5]"] <- paste("cases_", i, sep = "")
+}
+```
+
+```{r plot_stoch_sim, include = FALSE, eval = FALSE}
+# Below you can see a plot depicting the numbers of new cases per day for each of the simulations. This plot isn't very useful in itself, though it is good for illustrative purposes.
+# Plot the cases
+library("reshape2")
+library("ggplot2")
+melted_simulation = melt(simulation_incidence, id.vars = "date")
+ggplot(data = melted_simulation, aes(x = date, y = value, group = variable)) + geom_line(alpha = 0.4)
+```
+
+## simOutbreaks
+
+Below I use the *simOutbreaks* function in the *outbreaker* package to simulate an outbreak. The output that I care about is \$onset (date of disease onset of the case), \$id (unique case ID), and \$ances (ID of the infector).
+
+```{r simOutbreaks}
+library("outbreaker")
+
+# Simulate outbreak
+set.seed(1)
+sim_test <- simOutbreak(R0 = 3, infec.curve = c(1, 1, 1, 1), n.hosts = 1000, duration = 50, seq.length = 10)
+
+# Put the output that I care about into a data.frame
+sim_outbreak <- data.frame(id = sim_test$id,
+                           inf_id = sim_test$ances,
+                           onset = sim_test$onset)
+
+# Example
+# simOutbreak(R0, infec.curve, n.hosts = 200, duration = 50,
+#   seq.length = 10000, mu.transi = 1e-04, mu.transv = mu.transi/2,
+#   rate.import.case = 0.01, diverg.import = 10, group.freq = 1,
+#   spatial = FALSE, disp = 0.1, area.size = 10, reach = 1,
+#   plot = spatial, stop.once.cleared = TRUE)
+```
+
+# Serial interval
+
+```{r serial_interval_calculation}
+library(earlyR)
+library(epicontacts)
+library(outbreaks)
+library(epitrix)
+
+# The dataset
+head(sim_outbreak, 12)
+# 1st column says the case ID
+# 2nd column marks the infector of the case
+# 3rd column marks the date of onset
+
+# Make a directed list of contacts
+contacts <- make_epicontacts(linelist = sim_outbreak, contacts = sim_outbreak, 
+                             id = 1L, from = 2L, to = 1L, directed = TRUE)
+
+# Make a serial interval distribution
+directed_contacts <- get_pairwise(contacts, "onset")
+
+# Discretise the distribution
+si_fit <- fit_disc_gamma(directed_contacts)
+```
+
+The mean serial interval is `si_fit$mu`, while the SD is `si_fit$sd`. The serial interval should probably be rounded upwards when dealing with the incidence curve.
+
+# Incidence curve
+
+Below I construct an incidence curve based on the simulated linelist. Note that I am using cutoff dates rather than actual distinct subgroups due to the carry-over of the force of one group to the next.
+
+In my opinion it is better to work in serial intervals rather than weeks. When looking at serial intervals, it is more likely that I will come up with more generally applicable rules whereas if I were to work in weeks, the prediction metrics would likely look quite different for each disease due to differences in serial intervals.
+
+```{r incidence_curve}
+library(incidence)
+
+# Plot the incidence for all the data we have
+sim_incidence <- incidence(sim_outbreak$onset, interval = 1)
+plot(sim_incidence)
+
+# Rules for cut-offs
+first_12 <- sim_outbreak[13, 3] # dates for the first 12 cases
+serial_int <- ceiling(si_fit$mu) # the mean serial interval rounded upwards
+
+# Split incidence data into subgroups
+sim_incidence_1 <- sim_incidence[1:first_12, ] # this group contains at least the first 12 cases
+sim_incidence_2 <- sim_incidence[1:first_12 + serial_int, ] # this group contains the next serial interval
+
+plot(sim_incidence_1)
+plot(sim_incidence_2)
+```
+
+# R esimation
+
+Now that I have my serial intervals estimated and incidence curves set up, I can estimate R forthe various subgroups of the data as defined in my incidence curve.
+
+```{r R_estimate}
+library(earlyR)
+
+# R estimation for different groups
+R1 <- get_R(sim_incidence_1, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+R2 <- get_R(sim_incidence_2, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+print(c(R1$R_ml, R2$R_ml))
+
+# Visualising R
+plot(R1)
+plot(R1, "lambdas")
+abline(v = max(sim_incidence_1$dates), lty = 2)
+
+plot(R2)
+plot(R2, "lambdas")
+abline(v = max(sim_incidence_2$dates), lty = 2)
+```
