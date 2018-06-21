@@ -11,38 +11,62 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
-# The data
+```{r packages}
+# Install the most up-to-date versions of each package
+drat::addRepo("reconhub")
+install.packages(c("outbreaks", "incidence", "epicontacts", "epitrix", "earlyR", "EpiEstim"))
+```
 
-Assume that I have daily case data for an outbreak. The outbreak of choice is an H1N1 influenza outbreak in Pennsylvania in 2009 (EpiEstim). There is data for 32 days, but I will pretend that I only have data for the first 2 weeks. I assume that the data is complete and devoid of reporting delays. I am aware that this is an unrealistic expectation for real data but this assumption works for my example.
+# Real data
+
+Assume that I have daily case data for an outbreak. The outbreak of choice is a measles outbreak in Hagelloch in 1861 (outbreaks). There is data for 87 days, but I will pretend that I have data only for various time periods. I assume that the data is complete and devoid of reporting delays. I am aware that this is an unrealistic expectation for real data but this assumption works for my example.
 
 ```{r data}
-library(EpiEstim) # need the EpiEstim package for data
-data("Flu2009") # Load the flu data
-Flu2009 # Look at what the full dataset contains
+# Look at what the full dataset contains
+library(outbreaks)
+measles_hagelloch_1861
+
+# Sort by date of prodrome
+measles_hagelloch_sorted <- dplyr::arrange(measles_hagelloch_1861, date_of_prodrome)
+
+# Make a new case ID so that each case has its own number according to date_of_prodrome
+cbind(prodrome_case_ID = seq(1, nrow(measles_hagelloch_sorted), 1), measles_hagelloch_sorted)
 ```
+
+Cori et al. (2013) suggest that calculating $R$ from fewer than 12 cases and for a time period that is less than 1 average serial interval can be misleading. According to the contact data of this measles dataset, the mean serial interval can be approximated to be 11 (10.89) days.
+
+Manual splitting of the dataset according to Cori et al.'s (2013) limitations gives the following dates for this measles outbreak:
+
+* 30/10/1861 to 17/11/1861 (19 days, 12 cases)
+* 18/11/1861 to 28/11/1861 (11 days, 60 cases)
+* 29/11/1861 to 09/12/1861 (11 days, 104 cases)
+* 10/12/1861 to 24/01/1862 (46 days, 12 cases)
+
+This split means that the first and last subsets of the dataset span for a long period of time to reach the minimum number of 12 cases. The middle subsets on the other hand span the minimum number of dates (the mean serial interval) and contain most of the cases. There is one case that is far later than the rest (January 24th 1862), outliers like that are better ignored. Due to previous time windows' forces of infection affecting the current time window, it is better to take cutoff dates rather than windows of data.
+
+Therefore, the cutoff dates are:
+* 17/11/1861
+* 28/11/1861
+* 09/12/1861
+* 21/12/1861
+* 02/01/1862
 
 Let's have a look at the incidence curve for the outbreak.
 
 ```{r incidence_curve}
-library(ggplot2)
+library(incidence)
 
-# Truncate the dataset and make incidence into its own dataframe
-length_obs <- 14 # length of observation period in days
-end <- length(Flu2009$Incidence)
+# Plot the incidence for all the data we have
+measles_hagelloch_incidence <- incidence(measles_hagelloch_1861$date_of_prodrome, interval = 1)
+plot(measles_hagelloch_incidence)
 
-# Convert to a dataframe for ggplot
-Flu2009_incidence <- data.frame(Flu2009$Incidence[1:length_obs]) 
-names(Flu2009_incidence) <- c("Incidence") # Rename the variable
+# Split incidence data into the 4 subgroups
+measles_hagelloch_incidence_1 <- measles_hagelloch_incidence[1:19, ]
+measles_hagelloch_incidence_2 <- measles_hagelloch_incidence[1:30, ]
+measles_hagelloch_incidence_3 <- measles_hagelloch_incidence[1:42, ]
+measles_hagelloch_incidence_4 <- measles_hagelloch_incidence[1:65, ]
 
-# Add a "day" column to the dataset to help plotting
-day_sequence <- seq(1, length_obs, 1)
-Flu2009_incidence$Day <- day_sequence
-
-incidence_curve <- ggplot(data = Flu2009_incidence, aes(x = Flu2009_incidence$Day, 
-                                                        y = Flu2009_incidence$Incidence)) +
-                   geom_bar(stat="identity")
-incidence_curve
-
+plot(measles_hagelloch_incidence_4)
 ```
 
 \newpage
@@ -50,47 +74,59 @@ incidence_curve
 
 Next, I'll generate a forecast so that I can assess its performance later. 
 
-The EpiEstim package provides an estimate of the serial interval Gamma distribution already so I don't need to calculate it:
+The datasets of the EpiEstim package provide an estimate of the serial interval Gamma distribution already so I don't need to calculate it in these cases. Just take the mean and standard deviation and run with it.
 
-```{r serial_interval, echo = FALSE}
-# Make the serial interval distribution into a dataframe
-Flu2009_si <- data.frame(Flu2009$SI.Distr)
-SI_end <- length(Flu2009$SI.Distr)
+For some outbreaks, such as this measles outbreak, it is necessary to estimate the serial interval yourself. In order to do so, you need to find a dataset relevant to your disease that includes contact data and approximate the serial interval from there. One can also approximate a serial interval distribution given a mean and variance of a serial interval. In this case we have contact data so we will just use the data that comes with this dataset for illustrative purposes. 
 
-# Plot the serial interval
-serial_interval <- ggplot(data = Flu2009_si, aes(x = seq(1:SI_end), 
-                                                 y = Flu2009_si$Flu2009.SI.Distr)) +
-                   geom_bar(stat="identity")
-serial_interval
+```{r serial_interval_calculation}
+library(earlyR)
+library(epicontacts)
+library(outbreaks)
+library(epitrix)
 
+# The dataset
+measles_hagelloch_1861
+# 1st column says the case ID
+# 2nd column marks the infector of the case
+# 3rd column marks the date of prodrome
+
+# Make a directed list of contacts
+contacts <- make_epicontacts(linelist = measles_hagelloch_1861, contacts = measles_hagelloch_1861, 
+                             id = 1L, from = 2L, to = 1L, directed = TRUE)
+
+# Make a serial interval distribution
+directed_contacts <- get_pairwise(contacts, "date_of_prodrome")
+hist(directed_contacts)
+
+# Discretise the distribution
+si_fit <- fit_disc_gamma(directed_contacts)
 ```
-
-The mean of the distribution is 2.6 days.
-
-The standard deviation of the distribution is 1.5 days.
-
-The shift of the distribution is 1 day.
 
 I can now estimate R:
 ```{r R_estimate}
 library(earlyR)
 
-# Specifying the input for the estimate
-mu <- 2.6 # serial interval mean
-sigma <- 1.5 # serial interval SD
-i <- c(Flu2009$Incidence[1:length_obs]) # incidence vector
-typeof(i)
-
-# The R estimation
-R <- get_R(as.integer(i), disease = NULL, si = NULL, si_mean = mu, si_sd = sigma, 
+# The R estimation - won't work because not much data at the end of the outbreak
+R <- get_R(measles_hagelloch_incidence, si_mean = si_fit$mu, si_sd = si_fit$sd, 
            max_R = 10)
 print(R)
+# plot(R)
+
+# R estimation for different groups
+R1 <- get_R(measles_hagelloch_incidence_1, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+R2 <- get_R(measles_hagelloch_incidence_2, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+R3 <- get_R(measles_hagelloch_incidence_3, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+R4 <- get_R(measles_hagelloch_incidence_4, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+print(c(R1$R_ml, R2$R_ml, R3$R_ml, R4$R_ml))
 
 # Visualising R
-plot(R)
-plot(R, "lambdas")
-abline(v = max(Flu2009_incidence$Day), lty = 2)
-
+plot(R_test)
+plot(R_test, "lambdas")
+abline(v = as.Date(max(measles_hagelloch_incidence[1:25, ]$dates)), lty = 2)
 ```
 
 The dotted lines in the global force of infection plot show the current date (i.e. last date observed). There is still a possibility of a new transmission event occurring. 
@@ -100,14 +136,13 @@ I can also estimate R with the EpiEstim package:
 library(EpiEstim)
 
 # Specifying the input for the estimate
-mu <- 2.6 # serial interval mean
-sigma <- 1.5 # serial interval SD
-i <- c(Flu2009$Incidence[1:length_obs]) # incidence vector
+# mu <- 2.6 # serial interval mean
+# sigma <- 1.5 # serial interval SD
+i <- c(measles_hagelloch_incidence$counts) # make an incidence vector
 
 # T.Start and T.End should be vectors of of time periods for which R should be estimated
-epiestim_R <- EstimateR(i, T.Start = c(2, 9), T.End = c(8, 14), method = c("ParametricSI"), Mean.SI = mu, Std.SI = sigma)
-
-
+# We care about the posterior coefficient of variation for R
+epiestim_R <- EstimateR(i, T.Start = c(2, 9, 15, 22), T.End = c(8, 14, 21, 32), method = c("ParametricSI"), Mean.SI = si_fit$mu, Std.SI = si_fit$sd, plot = TRUE)
 ```
 
 \newpage
@@ -115,73 +150,69 @@ epiestim_R <- EstimateR(i, T.Start = c(2, 9), T.End = c(8, 14), method = c("Para
 
 Now that I know what's happening with the effective reproduction number, I can forecast into the future to predict what will happen next.
 
-The *projections* package will not work unless you feed incidence to it as an incidence object (using the package *incidence*), so I'll need to re-make my daily incidence:
-```{r redo_incidence}
-library(incidence)
-
-Flu2009_incidence # what I'll be converting to an incidence object
-
-# Need to open up the incidence so that there's only 1 individual per row with
-# their date of becoming a case (assume date of onset is the case date)
-Flu2009_infday <- array(NA, dim = c(sum(Flu2009_incidence$Incidence)))
-
-for (i in 1:nrow(Flu2009_incidence)) {
-  if (Flu2009_incidence$Incidence[i] > 0) {
-    # create an array for the number of individuals who have the same date of infection
-    number_cases <- array(Flu2009_incidence$Day[i], 
-                          dim = c(Flu2009_incidence$Incidence[i])) 
-    # calculate where in the new array the cases for day i should be added to
-    addition_point <- sum(Flu2009_incidence$Incidence[0:(i-1)]) + 1 
-    # add the cases for day i to the big array
-    Flu2009_infday[(addition_point):(addition_point+length(number_cases)-1)] <- Flu2009_incidence$Day[i] 
-  }
-}
-
-Flu2009_infday # The current shape of incidence
-
-library(incidence)
-Flu2009_newinc <- as.incidence(c(Flu2009_incidence$Incidence)) # The data that you pretend you actually have
-
-plot(Flu2009_newinc)
-
-# Now convert this "line list" into an incidence object
-Flu2009_newinc <- incidence(dates = as.numeric(Flu2009_infday), interval = 1)
-plot(Flu2009_newinc)
-```
+The *projections* package will not work unless you feed incidence to it as an incidence object (using the package *incidence*), so you'll need to re-make your daily incidence with the as.incidence function from the package if you haven't done so already. You can then continue on to forecasting.
 
 ```{r forecast}
+#devtools::install_github("reconhub/projections")
 library(projections)
+library(ggplot2)
+library(magrittr)
+library(incidence)
 
 # number of days that I hid data for
-hidden_days <- end - length_obs
+measles_hagelloch_total_incidence <- incidence(measles_hagelloch_1861$date_of_prodrome)
+# measles_hagelloch_hidden <- subset(measles_hagelloch_1861, date_of_prodrome > cutoff_date)
+# measles_hagelloch_hidden_incidence <- incidence(measles_hagelloch_hidden$date_of_prodrome, interval = 1)
 
 # Number of trajectories for the projection
-n_traj <- 10000 
+n_traj <- 10000
 
 # Serial interval distribution already provided with the EpiEstim data
-proj <- project(Flu2009_newinc, R = sample_R(R, 1000), si = Flu2009$SI.Distr, 
-                n_sim = n_traj, n_days = hidden_days, R_fix_within = TRUE)
-
-# Make a data frame of the hidden data for comparison when plotting
-Flu2009_incidence_hidden <- data.frame(Flu2009$Incidence[length_obs + 1:end])
-Flu2009_incidence_hidden <- data.frame(Flu2009_incidence_hidden[1:hidden_days, ])
-names(Flu2009_incidence_hidden) <- c("Incidence") # Rename the variable
-Flu2009_incidence_hidden$Day <- seq((length_obs + 1), end, 1)
+proj_1 <- project(measles_hagelloch_incidence_1, R = sample_R(R1, 1000), si = si_fit$distribution, 
+                n_sim = n_traj, n_days = 20, R_fix_within = TRUE)
+proj_2 <- project(measles_hagelloch_incidence_2, R = sample_R(R2, 1000), si = si_fit$distribution, 
+                n_sim = n_traj, n_days = 20, R_fix_within = TRUE)
+proj_3 <- project(measles_hagelloch_incidence_3, R = sample_R(R3, 1000), si = si_fit$distribution, 
+                n_sim = n_traj, n_days = 20, R_fix_within = TRUE)
+proj_4 <- project(measles_hagelloch_incidence_4, R = sample_R(R4, 1000), si = si_fit$distribution, 
+                n_sim = n_traj, n_days = 20, R_fix_within = TRUE)
 
 # Look at prediction quantiles
-apply(proj, 1, summary)
+# apply(proj, 1, summary)
 
 # Look at how the mean develops
-apply(proj, 1, function(x) mean(x > 0))
+# apply(proj, 1, function(x) mean(x > 0))
 
 # Plot the projection
-plot(proj, c(.1, .9)) +
-  # Add a line showing the actual incidence for days 15-32
-  geom_line(aes(x = Day, y = Incidence), Flu2009_incidence_hidden)
-
+plot(measles_hagelloch_incidence) %>% add_projections(proj_1[1:10, ], boxplots = FALSE)
+plot(measles_hagelloch_incidence) %>% add_projections(proj_2[1:10, ], boxplots = FALSE)
+plot(measles_hagelloch_incidence) %>% add_projections(proj_3[1:20, ], boxplots = FALSE)
+plot(measles_hagelloch_incidence) %>% add_projections(proj_4[1:20, ], boxplots = FALSE)
 ```
 
-According to the predictions, it looks like the outbreak incidence will be increasing over the next 18 days. The uncertainty around the prediction estimates increases as the forecast moves further into the future. Compared to the true incidence (black line), the forecast stays near the prediction for around 3 days, after which the prediction starts to grossly overestimate incidence.
+Below I test different cutoff points and lengths of projection and then use prediction metrics on these test projections.
+
+```{r testing}
+library(earlyR)
+library(projections)
+library(ggplot2)
+library(magrittr)
+library(incidence)
+
+# Testing different cutoff points
+cutoff_point <- 32
+proj_days <- 7 # number of days projected into future
+
+R_test <- get_R(measles_hagelloch_incidence[1:cutoff_point, ], si_mean = si_fit$mu, si_sd = si_fit$sd, 
+            max_R = 10)
+
+proj_test <- project(measles_hagelloch_incidence[1:cutoff_point, ], R = sample_R(R_test, 1000), si = si_fit$distribution, 
+                n_sim = n_traj, n_days = proj_days, R_fix_within = TRUE)
+
+plot(measles_hagelloch_incidence) %>% add_projections(proj_test, boxplots = FALSE)
+```
+
+According to the predictions, it looks like the outbreak incidence will be increasing over the next 18 days. The uncertainty around the prediction estimates increases as the forecast moves further into the future. Compared to the true incidence (black histogram), the forecast stays near the prediction for around 3 days, after which the prediction starts to grossly overestimate incidence.
 
 \newpage
 # Assessing prediction performance
@@ -200,9 +231,14 @@ The Anderson-Darling test (a statistical test for seeing if the data is drawn fr
 
 ```{r calibration}
 # library("goftest")
+library(incidence)
 
 # The true datapoints: x_t
-x_t <- Flu2009_incidence_hidden$Incidence
+measles_hagelloch_hidden_incidence <- measles_hagelloch_incidence[(cutoff_point+1):(cutoff_point+proj_days), ]
+x_t <- measles_hagelloch_incidence[(cutoff_point+1):(cutoff_point+proj_days), ]$counts
+
+# Number of days 
+hidden_days <- as.vector(measles_hagelloch_hidden_incidence$timespan)
 
 # The cumulative probability distribution for time t: F_t
 cumulative_poisson <- function(data, pred){
@@ -226,8 +262,7 @@ calibration <- function(data, pred){
 #   return(anderson-darling)
 # }
 
-model_calibration <- calibration(x_t, proj)
-
+model_calibration <- calibration(x_t, proj_test)
 ```
 
 ```{r plot_calibration, echo = FALSE}
@@ -239,10 +274,9 @@ plot_calibration <- ggplot(data = calibration_data, aes(x = days,
                                                         y = model_calibration)) +
                            geom_point(size = 2, shape = 16) 
 plot_calibration
-
 ```
 
-The model is kind of calibrated for the first 3 days (also intuitively seen in the previous plot), but after that calibration drops.
+The model is kind of calibrated for the first few days (also intuitively seen in the previous plot), but after that calibration drops.
 
 \newpage
 ## Sharpness (Funk et al.)
@@ -268,11 +302,10 @@ MADM <- function(x){
   traj_diff <- array(NA, dim = c(n_traj)) # array for storing SDs
   # For each trajectory for this day, calculate the SD
   for (i in 1:n_traj){
-    absolute_diff <-  abs(x[i] - forecast_median(x))
     # save the absolute difference for each trajectory
-    traj_diff[i] <- absolute_diff
+    traj_diff[i] <-  abs(x[i] - forecast_median(x))
   }
-  MADM <- median(traj_diff)
+  MADM <- median(as.vector(traj_diff))
   return(MADM)
 }
 
@@ -282,18 +315,16 @@ sharpness <- function(x){
   # array for storing daily sharpness
   sharpness <- array(NA, dim = c(hidden_days))
   for (i in 1:hidden_days){
-    sharpness_day <- 1 - (MADM(x[i, ]) / forecast_median(x[i, ])) 
-    sharpness[i] <- sharpness_day
+    sharpness[i] <- 1 - (MADM(as.vector(x[i, ])) / forecast_median(as.vector(x[i, ]))) 
   }
   return(sharpness)
 }
 
-model_sharpness <- sharpness(proj)
-
+model_sharpness <- sharpness(proj_test)
 ```
 
 ```{r plot_sharpness, echo = FALSE}
-sharpness_days <- seq(1, hidden_days, 1)
+sharpness_days <- seq(1, as.vector(hidden_days), 1)
 sharpness_data <- data.frame(model_sharpness)
 sharpness_data$days <- sharpness_days
 
@@ -301,7 +332,6 @@ plot_sharpness <- ggplot(data = sharpness_data, aes(x = days,
                                                     y = model_sharpness)) +
                            geom_point(size = 2, shape = 16) 
 plot_sharpness
-
 ```
 
 Model sharpness decreases as you forecast further. Remember, S = 1 is perfect sharpness.
@@ -358,7 +388,7 @@ expected <- function(h_values, pred){
 bias <- function(data, pred){
   bias <- array(NA, dim = c(hidden_days))
   for (i in 1:hidden_days){
-  bias[i] <- 2 * (expected(heaviside(difference(data[i], pred[i, ])), pred) - 0.5)
+  bias[i] <- 2 * (expected(heaviside(difference(data[i], as.vector(pred[i, ]))), as.vector(pred)) - 0.5)
   }
   return(bias)
 }
@@ -370,11 +400,11 @@ bias_score <- function(data, pred){
   return(bias_score)
 }
 
-model_bias <- bias(x_t, proj)
+model_bias <- bias(x_t, proj_test)
 
-print(paste("The bias score is", bias_score(x_t, proj)))
-
+print(paste("The bias score is", bias_score(x_t, proj_test)))
 ```
+
 ```{r plot_bias, echo = FALSE}
 bias_days <- seq(1, hidden_days, 1)
 bias_data <- data.frame(model_bias)
@@ -384,7 +414,6 @@ plot_bias <- ggplot(data = bias_data, aes(x = days,
                                           y = model_bias)) +
                            geom_point(size = 2, shape = 16) 
 plot_bias
-
 ```
 
 The model tends to over-predict the number of cases (positive bias?).
@@ -413,13 +442,12 @@ mean_squared_diff <- function(data, pred){
 rmse <- function(data, pred){
   rmse <- array(NA, dim = c(length(data)))
   for (i in 1:length(data)){
-    rmse[i] <- sqrt(mean_squared_diff(data[i], pred[i, ]))
+    rmse[i] <- sqrt(mean_squared_diff(data[i], as.vector(pred[i, ])))
   }
   return(rmse)
 }
 
-model_rmse <- rmse(x_t, proj)
-
+model_rmse <- rmse(x_t, proj_test)
 ```
 
 ```{r plot_rmse, echo = FALSE}
@@ -431,7 +459,6 @@ plot_rmse <- ggplot(data = rmse_data, aes(x = days,
                                           y = model_rmse)) +
                            geom_point(size = 2, shape = 16) 
 plot_rmse
-
 ```
 
 \newpage
@@ -477,7 +504,6 @@ crps <- function(data, pred){
 }
 
 model_crps <- crps(x_t, proj)
-
 ```
 
 ```{r plot_crps, echo = FALSE}
@@ -489,7 +515,6 @@ plot_crps <- ggplot(data = crps_data, aes(x = days,
                                           y = model_crps)) +
                            geom_point(size = 2, shape = 16) 
 plot_crps
-
 ```
 
 CRPS increases as forecasts are further away from the current date. There's a clear jump after the third forecast day, this coincides with the true data not being within the scope of the confidence intervals of the prediction seen in the prediction plot.
@@ -522,7 +547,6 @@ mae <- function(data, pred){
 }
 
 model_mae <- mae(x_t, proj)
-
 ```
 
 ```{r plot_mae, echo = FALSE}
@@ -534,7 +558,6 @@ plot_mae <- ggplot(data = mae_data, aes(x = days,
                                         y = model_mae)) +
                            geom_point(size = 2, shape = 16) 
 plot_mae
-
 ```
 
 \newpage
