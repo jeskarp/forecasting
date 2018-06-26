@@ -100,47 +100,28 @@ Below I use the *simOutbreaks* function in the *outbreaker* package to simulate 
 
 ```{r simOutbreaks}
 library("outbreaker")
+library("epitrix")
+library("distcrete")
+
+# Create a serial interval for simulation
+mu <- 2
+cv <- 0.75
+sd <- cv * mu
+sim_si <- gamma_mucv2shapescale(mu, cv)
+si <- distcrete("gamma", shape = sim_si$shape, scale = sim_si$shape, w = 0, interval = 1)
+
+# Plot of the discretised serial interval
+plot(si$d(0:30), type = "h", lwd = 5, lend = 1)
 
 # Simulate outbreak
 set.seed(1)
-sim_test <- simOutbreak(R0 = 3, infec.curve = c(1, 1, 1, 1), n.hosts = 1000, duration = 50, seq.length = 10)
+sim_test <- simOutbreak(R0 = 3, infec.curve = si$d(0:30), n.hosts = 1000000, duration = 100, seq.length = 10, stop.once.cleared = FALSE)
+# make duration 8 delta
 
 # Put the output that I care about into a data.frame
 sim_outbreak <- data.frame(id = sim_test$id,
                            inf_id = sim_test$ances,
                            onset = sim_test$onset)
-
-# Example
-# simOutbreak(R0, infec.curve, n.hosts = 200, duration = 50,
-#   seq.length = 10000, mu.transi = 1e-04, mu.transv = mu.transi/2,
-#   rate.import.case = 0.01, diverg.import = 10, group.freq = 1,
-#   spatial = FALSE, disp = 0.1, area.size = 10, reach = 1,
-#   plot = spatial, stop.once.cleared = TRUE)
-```
-
-# Serial interval
-
-```{r serial_interval_calculation}
-library(earlyR)
-library(epicontacts)
-library(outbreaks)
-library(epitrix)
-
-# The dataset
-head(sim_outbreak, 12)
-# 1st column says the case ID
-# 2nd column marks the infector of the case
-# 3rd column marks the date of onset
-
-# Make a directed list of contacts
-contacts <- make_epicontacts(linelist = sim_outbreak, contacts = sim_outbreak, 
-                             id = 1L, from = 2L, to = 1L, directed = TRUE)
-
-# Make a serial interval distribution
-directed_contacts <- get_pairwise(contacts, "onset")
-
-# Discretise the distribution
-si_fit <- fit_disc_gamma(directed_contacts)
 ```
 
 The mean serial interval is `si_fit$mu`, while the SD is `si_fit$sd`. The serial interval should probably be rounded upwards when dealing with the incidence curve.
@@ -160,14 +141,16 @@ plot(sim_incidence)
 
 # Rules for cut-offs
 first_12 <- sim_outbreak[13, 3] # dates for the first 12 cases
-serial_int <- ceiling(si_fit$mu) # the mean serial interval rounded upwards
+serial_int <- mu # the mean serial interval rounded upwards
 
 # Split incidence data into subgroups
 sim_incidence_1 <- sim_incidence[1:first_12, ] # this group contains at least the first 12 cases
-sim_incidence_2 <- sim_incidence[1:first_12 + serial_int, ] # this group contains the next serial interval
+sim_incidence_2 <- sim_incidence[1:(first_12 + mu), ] # this group contains the next serial interval
+sim_incidence_3 <- sim_incidence[1:(first_12 + (2 * mu)), ] # this group contains the next serial interval
 
 plot(sim_incidence_1)
 plot(sim_incidence_2)
+plot(sim_incidence_3)
 ```
 
 # R esimation
@@ -178,11 +161,13 @@ Now that I have my serial intervals estimated and incidence curves set up, I can
 library(earlyR)
 
 # R estimation for different groups
-R1 <- get_R(sim_incidence_1, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+R1 <- get_R(sim_incidence_1, si = si, 
             max_R = 10)
-R2 <- get_R(sim_incidence_2, si_mean = si_fit$mu, si_sd = si_fit$sd, 
+R2 <- get_R(sim_incidence_2, si = si, 
             max_R = 10)
-print(c(R1$R_ml, R2$R_ml))
+R3 <- get_R(sim_incidence_3, si = si, 
+            max_R = 10)
+print(c(R1$R_ml, R2$R_ml, R3$R_ml))
 
 # Visualising R
 plot(R1)
@@ -192,4 +177,306 @@ abline(v = max(sim_incidence_1$dates), lty = 2)
 plot(R2)
 plot(R2, "lambdas")
 abline(v = max(sim_incidence_2$dates), lty = 2)
+
+plot(R3)
+plot(R3, "lambdas")
+abline(v = max(sim_incidence_3$dates), lty = 2)
+```
+
+# Forecasting outbreaks
+
+The incidence data, calculated serial intervals, and R estimates will now be put together to forecast what will happen to the outbreak.
+
+Like with the R estimates, I will project based on mean serial intervals. I will look at up to 3 rounded mean serial intervals.  
+
+```{r forecast}
+#devtools::install_github("reconhub/projections")
+library(projections)
+library(ggplot2)
+library(magrittr)
+library(incidence)
+
+# Number of trajectories for the projection
+n_traj <- 10000
+
+# Serial interval distribution already calculated before simulating
+proj_1 <- project(sim_incidence_1, R = sample_R(R1, 1000), si = si, 
+                n_sim = n_traj, n_days = 20, R_fix_within = TRUE)
+proj_2 <- project(sim_incidence_2, R = sample_R(R2, 1000), si = si, 
+                n_sim = n_traj, n_days = 20, R_fix_within = TRUE)
+
+# Look at prediction quantiles
+# apply(proj, 1, summary)
+
+# Look at how the mean develops
+# apply(proj, 1, function(x) mean(x > 0))
+
+# Plot the projections
+serial_int <- mu # the mean serial interval rounded upwards
+
+# First simulation subgroup
+plot(sim_incidence) %>% add_projections(proj_1[1:serial_int, ])
+plot(sim_incidence) %>% add_projections(proj_1[1:(serial_int * 2), ])
+plot(sim_incidence) %>% add_projections(proj_1[1:(serial_int * 3), ])
+
+plot(sim_incidence) %>% add_projections(proj_2[1:serial_int, ])
+plot(sim_incidence) %>% add_projections(proj_2[1:(serial_int * 2), ])
+plot(sim_incidence) %>% add_projections(proj_2[1:(serial_int * 3), ])
+```
+
+# Prediction performance
+
+## Calibration
+```{r calibration}
+# library("goftest")
+library(incidence)
+
+# Rules for cut-offs
+first_12 <- sim_outbreak[13, 3] # dates for the first 12 cases
+serial_int <- mu # the mean serial interval rounded upwards
+
+# The true datapoints: x_t
+sim_hidden_incidence_1_1 <- sim_incidence[(first_12 + 1):(first_12 + serial_int), ] # first SI
+sim_hidden_incidence_1_2 <- sim_incidence[(first_12 + serial_int + 1):(first_12 + (2 * serial_int)), ] # second SI
+sim_hidden_incidence_1_3 <- sim_incidence[(first_12 + (2 * serial_int) + 1):(first_12 + (3 * serial_int)), ] # third SI
+sim_hidden_incidence_1_all <- sim_incidence[(first_12 + 1):(first_12 + (3 * serial_int)), ] # all SI
+
+sim_hidden_incidence_2_1 <- sim_incidence[(first_12 + serial_int + 1):(first_12 + (2 * serial_int)), ] # first SI
+sim_hidden_incidence_2_2 <- sim_incidence[(first_12 + (2 * serial_int) + 1):(first_12 + (3 * serial_int)), ] # second SI
+sim_hidden_incidence_2_3 <- sim_incidence[(first_12 + (3 * serial_int) + 1):(first_12 + (4 * serial_int)), ] # third SI
+sim_hidden_incidence_2_all <- sim_incidence[(first_12 + serial_int + 1):(first_12 + (4 * serial_int)), ]
+
+# The cumulative probability distribution for time t: F_t
+cumulative_poisson <- function(data, pred){
+  ppois(data, mean(pred))
+}
+
+# Calculating calibration for each prediction day
+calibration <- function(data, pred){
+  calibration <- array(NA, dim = c(nrow(data))) # nrow(data) is how many days we have hidden data for
+  for (i in 1:nrow(data)){
+    calibration[i] <- cumulative_poisson(data[i], pred[i, ])
+  }
+  return(calibration)
+}
+
+# anderson-darling <- function(data, pred){
+#   anderson-darling <- array(NA, dim = c(hidden_days))
+#   for (i in 1:hidden_days){
+#   ad.test()
+#   }
+#   return(anderson-darling)
+# }
+
+# model_calibration <- calibration(x_t, proj_test)
+model_calibration_sim_1_1 <- calibration(sim_hidden_incidence_1_1$counts, proj_1[1:serial_int, ])
+model_calibration_sim_1_2 <- calibration(sim_hidden_incidence_1_2$counts, proj_1[(serial_int + 1):(serial_int * 2), ])
+model_calibration_sim_1_3 <- calibration(sim_hidden_incidence_1_3$counts, proj_1[((serial_int * 2) + 1):(serial_int * 3), ])
+model_calibration_sim_1_all <- calibration(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
+
+model_calibration_sim_2_1 <- calibration(sim_hidden_incidence_2_1$counts, proj_2[1:serial_int, ])
+model_calibration_sim_2_2 <- calibration(sim_hidden_incidence_2_2$counts, proj_2[(serial_int + 1):(serial_int * 2), ])
+model_calibration_sim_2_3 <- calibration(sim_hidden_incidence_2_3$counts, proj_2[((serial_int * 2) + 1):(serial_int * 3), ])
+model_calibration_sim_2_all <- calibration(sim_hidden_incidence_2_all$counts, proj_2[1:(serial_int * 3), ])
+```
+
+```{r plot_calibration, echo = FALSE}
+library(ggplot2)
+
+calibration_days <- function(data){
+  calibration_days <- seq(1, nrow(data), 1)
+  return(calibration_days)
+}
+
+calibration_data <- data.frame(model_calibration_sim_1_all)
+calibration_data$days <- calibration_days(sim_hidden_incidence_1_all$counts)
+
+plot_calibration <- ggplot(data = calibration_data, aes(x = days, 
+                                                        y = model_calibration_sim_1_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_calibration
+plot_calibration_2 <- ggplot(data = calibration_data, aes(x = days, 
+                                                        y = model_calibration_sim_2_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_calibration_2
+```
+
+## Sharpness
+
+```{r sharpness, cache = TRUE}
+# Function for calculating forecasted incidence median
+forecast_median <- function(x){
+  return(median(x))
+}
+
+# Function for calculating the standard deviations
+# Want it to return MADM(y)
+MADM <- function(x){
+  traj_diff <- array(NA, dim = c(n_traj)) # array for storing SDs
+  # For each trajectory for this day, calculate the SD
+  for (i in 1:n_traj){
+    # save the absolute difference for each trajectory
+    traj_diff[i] <-  abs(x[i] - forecast_median(x))
+  }
+  MADM <- median(as.vector(traj_diff))
+  return(MADM)
+}
+
+# Function for calculating the normalised median absolute deviation
+# Want it to return St(Ft)
+sharpness <- function(x){
+  # array for storing daily sharpness
+  sharpness <- array(NA, dim = c(nrow(x)))
+  for (i in 1:nrow(x)){
+    sharpness[i] <- 1 - (MADM(as.vector(x[i, ])) / forecast_median(as.vector(x[i, ]))) 
+  }
+  return(sharpness)
+}
+
+model_sharpness_sim_1_all <- sharpness(proj_1[1:(serial_int * 3), ])
+model_sharpness_sim_2_all <- sharpness(proj_2[1:(serial_int * 3), ])
+```
+
+```{r plot_sharpness, echo = FALSE}
+sharpness_days <- seq(1, as.vector(nrow(proj_1[1:(serial_int * 3), ])), 1)
+sharpness_data <- data.frame(model_sharpness_sim_1_all)
+sharpness_data$days <- sharpness_days
+
+plot_sharpness_1 <- ggplot(data = sharpness_data, aes(x = days, 
+                                                      y = model_sharpness_sim_1_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_sharpness_1
+plot_sharpness_2 <- ggplot(data = sharpness_data, aes(x = days, 
+                                                      y = model_sharpness_sim_2_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_sharpness_2
+```
+
+## Bias
+
+```{r bias}
+# Calculate the difference between datapoints
+# Feed in the true datapoint and predictions for a given time t
+difference <- function(data, pred){
+    # Calculate difference between data point and sample
+  difference <- array(NA, dim = c(n_traj))
+  for (i in 1:n_traj){
+    difference[i] <- pred[i] - data
+  }
+  return(difference)
+}
+
+# Do the Heaviside function with half-maximum convention
+# Feed in the differences between the predictions and true values for a given time t
+heaviside <- function(difference){
+  heaviside <- array(NA, dim = c(n_traj))
+  for (i in 1:n_traj){
+    if (difference[i] > 0){
+      heaviside[i] <- 1
+    } else if (difference[i] < 0){
+      heaviside[i] <- 0
+    } else{
+      heaviside[i] <- 0.5
+    }
+  }
+  return(heaviside)
+}
+
+# Calculate the expected prediction value for a given time t
+expected <- function(h_values, pred){
+  mean_heaviside <- mean(h_values)
+  return(mean_heaviside)
+}
+
+# Calculate bias
+bias <- function(data, pred){
+  bias <- array(NA, dim = c(nrow(data)))
+  for (i in 1:nrow(data)){
+  bias[i] <- 2 * (expected(heaviside(difference(data[i], as.vector(pred[i, ]))), as.vector(pred)) - 0.5)
+  }
+  return(bias)
+}
+
+# Get single bias score
+bias_score <- function(data, pred){
+  daily_bias <- bias(data, pred)
+  bias_score <- sum(daily_bias) / nrow(data)
+  return(bias_score)
+}
+
+# model_bias <- bias(x_t, proj_test)
+model_bias_sim_1_all <- bias(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
+model_bias_sim_2_all <- bias(sim_hidden_incidence_2_all$counts, proj_2[1:(serial_int * 3), ])
+
+print(paste("The first bias score is", bias_score(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])))
+print(paste("The second bias score is", bias_score(sim_hidden_incidence_2_all$counts, proj_2[1:(serial_int * 3), ])))
+```
+
+```{r plot_bias, echo = FALSE}
+bias_days <- seq(1, as.vector(nrow(proj_1[1:(serial_int * 3), ])), 1)
+
+bias_data <- data.frame(model_bias_sim_1_all)
+bias_data$days <- bias_days
+
+plot_bias_1 <- ggplot(data = bias_data, aes(x = bias_days, 
+                                          y = model_bias_sim_1_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_bias_1
+plot_bias_2 <- ggplot(data = bias_data, aes(x = bias_days, 
+                                          y = model_bias_sim_2_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_bias_2
+```
+
+## Root-mean-square error
+
+```{r RMSE}
+# Calculate squared difference between true data and prediction for a given timepoint
+squared_diff <- function(data, pred){
+  squared_diff <- array(NA, dim = c(length(pred)))
+  for (i in 1:length(pred)){
+  squared_diff[i] <- (data - pred[i])^2
+  }
+  return(squared_diff)
+}
+
+# Take the mean of the squared differences
+mean_squared_diff <- function(data, pred){
+  mean_squared_diff <- sum(squared_diff(data, pred)) / length(pred)
+  return(mean_squared_diff)
+}
+
+# Calculates RMSE for each forecasted timepoint
+rmse <- function(data, pred){
+  rmse <- array(NA, dim = c(length(data)))
+  for (i in 1:length(data)){
+    rmse[i] <- sqrt(mean_squared_diff(data[i], as.vector(pred[i, ])))
+  }
+  return(rmse)
+}
+
+model_rmse_sim_1_all <- rmse(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
+model_rmse_sim_2_all <- rmse(sim_hidden_incidence_2_all$counts, proj_2[1:(serial_int * 3), ])
+
+sum_rmse_1 <- sum(model_rmse_sim_1_all)
+sum_rmse_2 <- sum(model_rmse_sim_2_all)
+
+print(paste("The first summed RMSE is", sum_rmse_1))
+print(paste("The second summed RMSE is", sum_rmse_2))
+```
+
+```{r plot_rmse, echo = FALSE}
+rmse_days <- seq(1, as.vector(nrow(proj_1[1:(serial_int * 3), ])), 1)
+rmse_data <- data.frame(model_rmse_sim_1_all)
+rmse_data$days <- rmse_days
+
+plot_rmse_1 <- ggplot(data = rmse_data, aes(x = days, 
+                                          y = model_rmse_sim_1_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_rmse_1
+
+plot_rmse_2 <- ggplot(data = rmse_data, aes(x = days, 
+                                            y = model_rmse_sim_2_all)) +
+                           geom_point(size = 2, shape = 16) 
+plot_rmse_2
 ```
