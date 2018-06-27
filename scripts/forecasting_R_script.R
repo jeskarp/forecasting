@@ -15,7 +15,7 @@ si_disc <- function(mu, cv) {
 # A simulated outbreak
 sim_outbreak <- function(si, obs_time, R0) {
   # Simulate outbreak
-  set.seed(1)
+  # set.seed(1)
   sim_test <- simOutbreak(R0 = R0, infec.curve = si, n.hosts = 1000000, duration = obs_time, seq.length = 10,
                           stop.once.cleared = FALSE)
   # Put the output that I care about into a data.frame
@@ -27,9 +27,6 @@ sim_outbreak <- function(si, obs_time, R0) {
 
 # Aggregated data required for running projections
 full_data <- function() {
-  # daily_incidence <- c(1, 2, 3, 2, 3, 4, 5, 4, 7) # Actual data would go here
-  length_obs <- 3 # How many days' worth of data you're observing for, the rest is hidden
-
   # Serial interval
   mu <- 19 # SI mean
   # cv <- 0.75 # SI coefficient of variance
@@ -50,17 +47,12 @@ full_data <- function() {
   R0 <- 1.71 # R0 of the outbreak
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
-
-  
   # Number of trajectories for the projection
-  n_traj <- 10 # 10000
+  n_traj <- 10000
 
-  # Number of projections
-  n_proj <- 10 # 1000
-  
-  full_data <- list("outbreak_data" = outbreak_data, "length_obs" = length_obs, "serial_interval" = serial_interval, 
+  full_data <- list("outbreak_data" = outbreak_data, "serial_interval" = serial_interval, 
                     "mu" = mu, "sigma" = sigma, "delta" = delta, "no_chunks" = no_chunks, 
-                    "n_traj" = n_traj, "n_proj" = n_proj)
+                    "n_traj" = n_traj)
   
   return(full_data)
 }
@@ -297,11 +289,11 @@ chunk_projection <- function(full_data, combo_list) {
 ## The projection and prediction metric output ##
 #################################################
 
-output <- function() {
+output <- function(n_sim) {
   library(dplyr)
   
   # Set seed for reproducibility
-  set.seed(1)
+  # set.seed(1)
   sim_gen_data <- full_data() # has all the original data I need
   
   # Create a directory into which I store this simulation
@@ -315,27 +307,13 @@ output <- function() {
   obs_incidence <- observed_incidence(sim_gen_data$outbreak_data) # has the incidence object for the outbreak
   combo_list <- split_data(sim_gen_data) # all the combinations of deltas that I want to project for
   
-  # proj_metrics <- array(NA, dim = c(full_data$delta))
-  
-  # full_proj_metrics <- data.frame(dataset = NA,
-  #                                 cali_window_size = NA,
-  #                                 proj_window_size = NA,
-  #                                 disease = NA,
-  #                                 days_since_data = NA,
-  #                                 reliability = NA,
-  #                                 sharpness = NA,
-  #                                 bias = NA,
-  #                                 bias_score = NA,
-  #                                 rmse = NA,
-  #                                 sum_rmse = NA)
-  
   for (i in 1:nrow(combo_list)) {
     cutoff_time <- sim_gen_data$delta * combo_list[i, 1] # the time at which observed data stops
     proj_end <- sim_gen_data$delta * combo_list[i, 2] # the time at which projection ends
     proj_start <- cutoff_time + 1 # the time at which projection starts
     proj_window <- projection(sim_gen_data, obs_incidence, cutoff_time, proj_start, proj_end) # projection for the time window
     
-    plot(obs_incidence) %>% add_projections(proj_window[1:10])
+    # plot(obs_incidence) %>% add_projections(proj_window[1:10])
     
     # Calculate prediction metrics
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
@@ -373,5 +351,12 @@ output <- function() {
   write.csv(full_proj_metrics, file = "full_proj_metrics.csv")
   save(sim_gen_data, file = "sim_generating_data.RData")
   
-  return("Finished projecting.")
+  return(paste("Finished projection", n_sim, sep = " "))
+}
+
+multi_output <- function(n_simulations) {
+  for (i in 1:n_simulations){
+    output(i)
+  }
+  return("Finished all projections")
 }
