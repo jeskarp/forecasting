@@ -291,6 +291,7 @@ chunk_projection <- function(full_data, combo_list) {
 
 output <- function(n_sim) {
   library(dplyr)
+  library(incidence)
   
   # Set seed for reproducibility
   # set.seed(1)
@@ -306,6 +307,11 @@ output <- function(n_sim) {
   # Projections and prediction metrics
   obs_incidence <- observed_incidence(sim_gen_data$outbreak_data) # has the incidence object for the outbreak
   combo_list <- split_data(sim_gen_data) # all the combinations of deltas that I want to project for
+  
+  # Save plot of incidence curve
+  pdf("incidence.pdf", width = 7, height = 5)
+    plot(obs_incidence)
+  dev.off()
   
   for (i in 1:nrow(combo_list)) {
     cutoff_time <- sim_gen_data$delta * combo_list[i, 1] # the time at which observed data stops
@@ -350,8 +356,6 @@ output <- function(n_sim) {
   # Save important information
   write.csv(full_proj_metrics, file = "full_proj_metrics.csv")
   save(sim_gen_data, file = "sim_generating_data.RData")
-  
-  return(paste("Finished projection", n_sim, sep = " "))
 }
 
 multi_output <- function(n_simulations) {
