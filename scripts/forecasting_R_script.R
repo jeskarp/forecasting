@@ -7,6 +7,7 @@
 # A discretised serial interval
 si_disc <- function(mu, cv) {
   library(epitrix)
+  library(distcrete)
   sim_si <- gamma_mucv2shapescale(mu, cv)
   si <- distcrete("gamma", shape = sim_si$shape, scale = sim_si$shape, w = 0, interval = 1)
   return(si)
@@ -14,6 +15,7 @@ si_disc <- function(mu, cv) {
 
 # A simulated outbreak
 sim_outbreak <- function(si, obs_time, R0) {
+  library(outbreaker)
   # Simulate outbreak
   # set.seed(1)
   sim_test <- simOutbreak(R0 = R0, infec.curve = si, n.hosts = 1000000, duration = obs_time, seq.length = 10,
@@ -99,19 +101,6 @@ projection <- function(full_data, obs_incidence, cutoff_time, proj_start, proj_e
                   n_sim = full_data$n_traj, n_days = hidden_days, R_fix_within = TRUE)
   return(proj)
 }
-
-##########################
-## Multiple simulations ##
-##########################
-
-# Make multiple simulations and project for them
-# multi_simulation <- function(n_sim) {
-#   for (i in 1:n_sim) {
-      # Will need to specify where in the dataframe this particular output will be saved
-#     simulation <- output()
-#   }
-#   return(simulation)
-# }
 
 ########################
 ## Prediction metrics ##
@@ -232,8 +221,6 @@ bias_score <- function(data, pred){
   bias_score <- sum(daily_bias) / nrow(data)
   return(bias_score)
 }
-# model_bias_sim_1_all <- bias(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
-# bias_score(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
 
 
 
@@ -262,28 +249,6 @@ rmse <- function(data, pred){
   }
   return(rmse)
 }
-# model_rmse_sim_1_all <- rmse(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
-# sum_rmse_1 <- sum(model_rmse_sim_1_all)
-
-################################
-## Functions for data storage ##
-################################
-
-hash_function <- function(projected_incidence) {
-  library("digest")
-  hash <- digest(projected_incidence)
-  return(hash)
-}
-
-chunk_projection <- function(full_data, combo_list) {
-  
-  for (i in 1:nrow(combo_list)) {
-    cutoff_time <- full_data$delta * combo_list[i, 1] # the time at which observed data stops
-    proj_end <- full_data$delta * combo_list[i, 2] # the time at which projection ends
-    proj_start <- cutoff_time + 1 # the time at which projection starts
-    proj_window <- projection(full_data, obs_incidence, cutoff_time, proj_start, proj_end)
-  }
-}
 
 #################################################
 ## The projection and prediction metric output ##
@@ -292,6 +257,7 @@ chunk_projection <- function(full_data, combo_list) {
 output <- function(n_sim) {
   library(dplyr)
   library(incidence)
+  library(digest)
   
   # Set seed for reproducibility
   # set.seed(1)
@@ -310,7 +276,7 @@ output <- function(n_sim) {
   
   # Save plot of incidence curve
   pdf("incidence.pdf", width = 7, height = 5)
-    plot(obs_incidence)
+    print(plot(obs_incidence))
   dev.off()
   
   for (i in 1:nrow(combo_list)) {
