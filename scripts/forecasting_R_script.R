@@ -46,7 +46,7 @@ full_data <- function() {
   
   # Simulated outbreak
   obs_time <- delta * no_chunks # how long simulation is run for
-  R0 <- 1 # 1.71 # R0 of the outbreak
+  R0 <- 1.71 # R0 of the outbreak
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
