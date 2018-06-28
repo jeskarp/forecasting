@@ -1,0 +1,29 @@
+---
+title: "Analysing simulations"
+author: "Janetta E. Skarp"
+date: "28 June 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Preparing the full dataset for analysis
+
+In my forecasting folder, I have a folder called simulations, in which I hold all of my simulation data. Each simulation has its own folder, and from these folders I want a .csv file called "full_proj_metrics.csv". I want to put all of these csvs together to make a massive table.
+
+```{r collate_csvs}
+library(data.table)
+
+setwd("/home/evelina/Development/forecasting/simulations/")
+
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+
+# read and row bind all data sets
+combo_table <- rbindlist(lapply(output_files, fread))
+```
+
+## Linear models
