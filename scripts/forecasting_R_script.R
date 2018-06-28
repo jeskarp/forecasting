@@ -102,9 +102,9 @@ projection <- function(full_data, obs_incidence, cutoff_time, proj_start, proj_e
   return(proj)
 }
 
-########################
-## Prediction metrics ##
-########################
+######################################
+## Functions for prediction metrics ##
+######################################
 
 ## Reliability
 
@@ -130,7 +130,6 @@ reliability <- function(data, pred) {
   #   return(anderson-darling)
   # }
 }
-# model_calibration_sim_1_all <- reliability(sim_hidden_incidence_1_all$counts, proj_1[1:(serial_int * 3), ])
 
 
 
@@ -164,8 +163,6 @@ sharpness <- function(x){
   }
   return(sharpness)
 }
-
-# model_sharpness_sim_1_all <- sharpness(proj_1[1:(serial_int * 3), ])
 
 
 
