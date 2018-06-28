@@ -46,7 +46,7 @@ full_data <- function() {
   
   # Simulated outbreak
   obs_time <- delta * no_chunks # how long simulation is run for
-  R0 <- 1.71 # R0 of the outbreak
+  R0 <- 1 # 1.71 # R0 of the outbreak
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
@@ -71,9 +71,9 @@ split_data <- function(outbreak_data) {
 ##############################
 
 # Make daily incidence of the outbreak data
-observed_incidence <- function(linelist) {
+observed_incidence <- function(linelist, delta, no_chunks) {
   library(incidence)
-  observed_incidence <- incidence(linelist$onset, interval = 1)
+  observed_incidence <- incidence(linelist$onset, interval = 1, last_date = (delta * no_chunks))
   return(observed_incidence)
 }
 
@@ -268,7 +268,7 @@ output <- function(n_sim) {
   setwd(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
   
   # Projections and prediction metrics
-  obs_incidence <- observed_incidence(sim_gen_data$outbreak_data) # has the incidence object for the outbreak
+  obs_incidence <- observed_incidence(sim_gen_data$outbreak_data, sim_gen_data$delta, sim_gen_data$no_chunks) # has the incidence object for the outbreak
   combo_list <- split_data(sim_gen_data) # all the combinations of deltas that I want to project for
   
   # Save plot of incidence curve
@@ -276,13 +276,12 @@ output <- function(n_sim) {
     print(plot(obs_incidence))
   dev.off()
   
+  # A for loop for doing all the projections and calculating prediction metrics
   for (i in 1:nrow(combo_list)) {
     cutoff_time <- sim_gen_data$delta * combo_list[i, 1] # the time at which observed data stops
     proj_end <- sim_gen_data$delta * combo_list[i, 2] # the time at which projection ends
     proj_start <- cutoff_time + 1 # the time at which projection starts
     proj_window <- projection(sim_gen_data, obs_incidence, cutoff_time, proj_start, proj_end) # projection for the time window
-    
-    # plot(obs_incidence) %>% add_projections(proj_window[1:10])
     
     # Calculate prediction metrics
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
