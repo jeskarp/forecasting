@@ -17,7 +17,7 @@ si_disc <- function(mu, cv) {
 sim_outbreak <- function(si, obs_time, R0) {
   library(outbreaker)
   # Simulate outbreak
-  # set.seed(1)
+  set.seed(3)
   sim_test <- simOutbreak(R0 = R0, infec.curve = si, n.hosts = 1000000, duration = obs_time, seq.length = 10,
                           stop.once.cleared = FALSE)
   # Put the output that I care about into a data.frame
@@ -50,7 +50,7 @@ full_data <- function() {
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
-  n_traj <- 10000
+  n_traj <- 10 # 10000
 
   full_data <- list("outbreak_data" = outbreak_data, "serial_interval" = serial_interval, 
                     "mu" = mu, "sigma" = sigma, "delta" = delta, "no_chunks" = no_chunks, 
@@ -61,7 +61,9 @@ full_data <- function() {
 
 # Listing the calibration and projection combinations
 split_data <- function(outbreak_data) {
-  all_combos <- expand.grid(1:(outbreak_data$no_chunks - 1), 8)
+  # project for maximum 4 deltas
+  # latest projection can be last chunk of no_chunks
+  all_combos <- expand.grid(1:(outbreak_data$no_chunks - 1), outbreak_data$no_chunks)
   all_combos <- setNames(all_combos, c("calibration","projection"))
   return(all_combos)
 }
@@ -106,20 +108,22 @@ projection <- function(full_data, obs_incidence, cutoff_time, proj_start, proj_e
 ## Functions for prediction metrics ##
 ######################################
 
+# x_t - true data for a given outbreak
+
 ## Reliability
 
 # need the true datapoints for a given time and the predictions for the same time
 
 # The cumulative probability distribution for time t: F_t
-cumulative_poisson <- function(data, pred){
-  ppois(data, mean(pred))
+cumulative_poisson <- function(x_t, pred){
+  ppois(x_t, mean(pred))
 }
 
-reliability <- function(data, pred) {
+reliability <- function(x_t, pred) {
   library(incidence)
-    reliability <- array(NA, dim = c(nrow(data))) # nrow(data) is how many days we have hidden data for
-    for (i in 1:nrow(data)){
-      reliability[i] <- cumulative_poisson(data[i], pred[i, ])
+    reliability <- array(NA, dim = c(nrow(x_t))) # nrow(data) is how many days we have hidden data for
+    for (i in 1:nrow(x_t)){
+      reliability[i] <- cumulative_poisson(x_t[i], pred[i, ])
     }
     return(reliability)
   # anderson-darling <- function(data, pred){
@@ -136,18 +140,18 @@ reliability <- function(data, pred) {
 ## Sharpness
 
 # Function for calculating forecasted incidence median
-forecast_median <- function(x){
-  return(median(x))
-}
+# forecast_median <- function(x_t){
+#   return(median(x_t))
+# }
 
 # Function for calculating the standard deviations
 # Want it to return MADM(y)
-MADM <- function(x){
-  traj_diff <- array(NA, dim = c(length(x))) # array for storing SDs
+MADM <- function(pred){
+  traj_diff <- array(NA, dim = c(length(pred))) # array for storing SDs
   # For each trajectory for this day, calculate the SD
-  for (i in 1:length(x)){
+  for (i in 1:length(pred)){
     # save the absolute difference for each trajectory
-    traj_diff[i] <-  abs(x[i] - forecast_median(x))
+    traj_diff[i] <-  abs(pred[i] - median(pred)) # median is the forecast median
   }
   MADM <- median(as.vector(traj_diff))
   return(MADM)
@@ -155,11 +159,11 @@ MADM <- function(x){
 
 # Function for calculating the normalised median absolute deviation
 # Want it to return St(Ft)
-sharpness <- function(x){
+sharpness <- function(pred){
   # array for storing daily sharpness
-  sharpness <- array(NA, dim = c(nrow(x)))
-  for (i in 1:nrow(x)){
-    sharpness[i] <- 1 - (MADM(as.vector(x[i, ])) / forecast_median(as.vector(x[i, ]))) 
+  sharpness <- array(NA, dim = c(nrow(pred)))
+  for (i in 1:nrow(pred)){
+    sharpness[i] <- 1 - (MADM(as.vector(pred[i, ])) / median(as.vector(pred[i, ]))) # median is the forecast median
   }
   return(sharpness)
 }
@@ -170,11 +174,11 @@ sharpness <- function(x){
 
 # Calculate the difference between datapoints
 # Feed in the true datapoint and predictions for a given time t
-difference <- function(data, pred){
+difference <- function(x_t, pred){
   # Calculate difference between data point and sample
   difference <- array(NA, dim = c(length(pred)))
   for (i in 1:length(pred)){
-    difference[i] <- pred[i] - data
+    difference[i] <- pred[i] - x_t
   }
   return(difference)
 }
@@ -204,18 +208,18 @@ expected <- function(h_values, pred){
 }
 
 # Calculate bias
-bias <- function(data, pred){
-  bias <- array(NA, dim = c(nrow(data)))
-  for (i in 1:nrow(data)){
-    bias[i] <- 2 * (expected(heaviside(difference(data[i], as.vector(pred[i, ]))), as.vector(pred)) - 0.5)
+bias <- function(x_t, pred){
+  bias <- array(NA, dim = c(nrow(x_t)))
+  for (i in 1:nrow(x_t)){
+    bias[i] <- 2 * (expected(heaviside(difference(x_t[i], as.vector(pred[i, ]))), as.vector(pred)) - 0.5)
   }
   return(bias)
 }
 
 # Get single bias score
-bias_score <- function(data, pred){
-  daily_bias <- bias(data, pred)
-  bias_score <- sum(daily_bias) / nrow(data)
+bias_score <- function(x_t, pred){
+  daily_bias <- bias(x_t, pred)
+  bias_score <- sum(daily_bias) / nrow(x_t)
   return(bias_score)
 }
 
@@ -224,25 +228,25 @@ bias_score <- function(data, pred){
 ## Root-mean-square error
 
 # Calculate squared difference between true data and prediction for a given timepoint
-squared_diff <- function(data, pred){
+squared_diff <- function(x_t, pred){
   squared_diff <- array(NA, dim = c(length(pred)))
   for (i in 1:length(pred)){
-    squared_diff[i] <- (data - pred[i])^2
+    squared_diff[i] <- (x_t - pred[i])^2
   }
   return(squared_diff)
 }
 
 # Take the mean of the squared differences
-mean_squared_diff <- function(data, pred){
-  mean_squared_diff <- sum(squared_diff(data, pred)) / length(pred)
+mean_squared_diff <- function(x_t, pred){
+  mean_squared_diff <- sum(squared_diff(x_t, pred)) / length(pred)
   return(mean_squared_diff)
 }
 
 # Calculates RMSE for each forecasted timepoint
-rmse <- function(data, pred){
-  rmse <- array(NA, dim = c(length(data)))
-  for (i in 1:length(data)){
-    rmse[i] <- sqrt(mean_squared_diff(data[i], as.vector(pred[i, ])))
+rmse <- function(x_t, pred){
+  rmse <- array(NA, dim = c(length(x_t)))
+  for (i in 1:length(x_t)){
+    rmse[i] <- sqrt(mean_squared_diff(x_t[i], as.vector(pred[i, ])))
   }
   return(rmse)
 }
@@ -274,14 +278,21 @@ output <- function(n_sim) {
   # Save plot of incidence curve
   pdf("incidence.pdf", width = 7, height = 5)
     print(plot(obs_incidence))
-  dev.off()
+  dev.off()    
   
   # A for loop for doing all the projections and calculating prediction metrics
   for (i in 1:nrow(combo_list)) {
     cutoff_time <- sim_gen_data$delta * combo_list[i, 1] # the time at which observed data stops
     proj_end <- sim_gen_data$delta * combo_list[i, 2] # the time at which projection ends
     proj_start <- cutoff_time + 1 # the time at which projection starts
+    
+    # if (i == 7) {
+    #   print("We should have NAs here")
+    # }
+    
     proj_window <- projection(sim_gen_data, obs_incidence, cutoff_time, proj_start, proj_end) # projection for the time window
+    
+    # print(plot(obs_incidence) %>% add_projections(proj_window))
     
     # Calculate prediction metrics
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
@@ -326,3 +337,5 @@ multi_output <- function(n_simulations) {
   }
   return("Finished all projections")
 }
+
+output(1)
