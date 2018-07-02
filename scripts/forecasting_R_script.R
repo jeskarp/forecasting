@@ -6,8 +6,8 @@
 
 # A discretised serial interval
 si_disc <- function(mu, cv) {
-  library(epitrix)
-  library(distcrete)
+  if(!require(epitrix)) stop("epitrix is missing")
+  if(!require(distcrete)) stop("distcrete is missing")
   sim_si <- gamma_mucv2shapescale(mu, cv)
   si <- distcrete("gamma", shape = sim_si$shape, scale = sim_si$shape, w = 0, interval = 1)
   return(si)
@@ -15,9 +15,9 @@ si_disc <- function(mu, cv) {
 
 # A simulated outbreak
 sim_outbreak <- function(si, obs_time, R0) {
-  library(outbreaker)
+  if(!require(outbreaker)) stop("outbreaker is missing")
   # Simulate outbreak
-  set.seed(3)
+  # set.seed(3)
   sim_test <- simOutbreak(R0 = R0, infec.curve = si, n.hosts = 1000000, duration = obs_time, seq.length = 10,
                           stop.once.cleared = FALSE)
   # Put the output that I care about into a data.frame
@@ -50,7 +50,7 @@ full_data <- function() {
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
-  n_traj <- 10 # 10000
+  n_traj <- 10000 # 10000
 
   full_data <- list("outbreak_data" = outbreak_data, "serial_interval" = serial_interval, 
                     "mu" = mu, "sigma" = sigma, "delta" = delta, "no_chunks" = no_chunks, 
@@ -63,8 +63,15 @@ full_data <- function() {
 split_data <- function(outbreak_data) {
   # project for maximum 4 deltas
   # latest projection can be last chunk of no_chunks
+  outbreak_data <- full_data()
   all_combos <- expand.grid(1:(outbreak_data$no_chunks - 1), outbreak_data$no_chunks)
   all_combos <- setNames(all_combos, c("calibration","projection"))
+  # Want to keep combinations where calibration + projection <= no_chunks OR diff(projection, calibration) <= 4
+  for (i in 1:nrow(all_combos)) {
+    if ((all_combos$projection[i] - all_combos$calibration[i]) > 4) {
+      all_combos$projection[i] <- all_combos$calibration[i] + 4
+    }
+  }
   return(all_combos)
 }
 
@@ -72,25 +79,18 @@ split_data <- function(outbreak_data) {
 ## Functions for projection ##
 ##############################
 
-# Make daily incidence of the outbreak data
-observed_incidence <- function(linelist, delta, no_chunks) {
-  library(incidence)
-  observed_incidence <- incidence(linelist$onset, interval = 1, last_date = (delta * no_chunks))
-  return(observed_incidence)
-}
-
-R_estimate <- function(observed_incidence, serial_interval) {
+R_estimate <- function(obs_incidence, serial_interval) {
   # Estimate R
-  library(earlyR)
+  if(!require(earlyR)) stop("earlyR is missing")
   # The R estimation
-  R <- get_R(observed_incidence, si = serial_interval, 
+  R <- get_R(obs_incidence, si = serial_interval, 
              max_R = 10)
   return(R)
 }
 
 projection <- function(full_data, obs_incidence, cutoff_time, proj_start, proj_end) {
   # Forecast incidence
-  library(projections)
+  if(!require(projections)) stop("projections is missing")
 
   # number of days that I hid data for i.e. number of days I'm projecting for
   hidden_days <- proj_end - cutoff_time
@@ -120,7 +120,7 @@ cumulative_poisson <- function(x_t, pred){
 }
 
 reliability <- function(x_t, pred) {
-  library(incidence)
+  if(!require(incidence)) stop("incidence is missing")
     reliability <- array(NA, dim = c(nrow(x_t))) # nrow(data) is how many days we have hidden data for
     for (i in 1:nrow(x_t)){
       reliability[i] <- cumulative_poisson(x_t[i], pred[i, ])
@@ -138,11 +138,6 @@ reliability <- function(x_t, pred) {
 
 
 ## Sharpness
-
-# Function for calculating forecasted incidence median
-# forecast_median <- function(x_t){
-#   return(median(x_t))
-# }
 
 # Function for calculating the standard deviations
 # Want it to return MADM(y)
@@ -255,10 +250,10 @@ rmse <- function(x_t, pred){
 ## The projection and prediction metric output ##
 #################################################
 
-output <- function(n_sim) {
-  library(dplyr)
-  library(incidence)
-  library(digest)
+output <- function() {
+  if(!require(dplyr)) stop("dplyr is missing")
+  if(!require(incidence)) stop("incidence is missing")
+  if(!require(digest)) stop("digest is missing")
   
   # Set seed for reproducibility
   # set.seed(1)
@@ -272,8 +267,11 @@ output <- function(n_sim) {
   setwd(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
   
   # Projections and prediction metrics
-  obs_incidence <- observed_incidence(sim_gen_data$outbreak_data, sim_gen_data$delta, sim_gen_data$no_chunks) # has the incidence object for the outbreak
-  combo_list <- split_data(sim_gen_data) # all the combinations of deltas that I want to project for
+  # Incidence object for the outbreak
+  linelist <- sim_gen_data$outbreak_data
+  obs_incidence <- incidence(linelist$onset, interval = 1, last_date = (sim_gen_data$delta * sim_gen_data$no_chunks))
+  # All the combinations of deltas that I want to project for
+  combo_list <- split_data(sim_gen_data) 
   
   # Save plot of incidence curve
   pdf("incidence.pdf", width = 7, height = 5)
@@ -292,7 +290,9 @@ output <- function(n_sim) {
     
     proj_window <- projection(sim_gen_data, obs_incidence, cutoff_time, proj_start, proj_end) # projection for the time window
     
-    # print(plot(obs_incidence) %>% add_projections(proj_window))
+    pdf(paste("projection", i, ".pdf", sep = ""), width = 7, height = 5)
+      print(plot(obs_incidence) %>% add_projections(proj_window))
+    dev.off()
     
     # Calculate prediction metrics
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
@@ -305,6 +305,7 @@ output <- function(n_sim) {
     # make an array for storing the prediction metrics for a given projection
     proj_metrics <- data.frame(dataset = sim_hash,
                                cali_window_size = cutoff_time,
+                               no_cali_cases = obs_incidence[1:cutoff_time, ]$n,
                                proj_window_size = sim_gen_data$delta,
                                disease = "ebola",
                                days_since_data = c(1:(proj_end - cutoff_time)),
@@ -333,9 +334,10 @@ output <- function(n_sim) {
 
 multi_output <- function(n_simulations) {
   for (i in 1:n_simulations){
-    output(i)
+    output()
+    print(paste("Finished simulation", i, sep = " "))
   }
-  return("Finished all projections")
+  return(print("Finished all projections"))
 }
 
-output(1)
+multi_output(1)
