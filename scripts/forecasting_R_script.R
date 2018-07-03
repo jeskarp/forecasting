@@ -17,7 +17,7 @@ si_disc <- function(mu, cv) {
 sim_outbreak <- function(si, obs_time, R0) {
   if(!require(outbreaker)) stop("outbreaker is missing")
   # Simulate outbreak
-  # set.seed(3)
+  # set.seed(4)
   sim_test <- simOutbreak(R0 = R0, infec.curve = si, n.hosts = 1000000, duration = obs_time, seq.length = 10,
                           stop.once.cleared = FALSE)
   # Put the output that I care about into a data.frame
@@ -50,7 +50,7 @@ full_data <- function() {
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
-  n_traj <- 10000 # 10000
+  n_traj <- 100 # 10000
 
   full_data <- list("outbreak_data" = outbreak_data, "serial_interval" = serial_interval, 
                     "mu" = mu, "sigma" = sigma, "delta" = delta, "no_chunks" = no_chunks, 
@@ -113,28 +113,32 @@ projection <- function(full_data, obs_incidence, cutoff_time, proj_start, proj_e
 ## Reliability
 
 # need the true datapoints for a given time and the predictions for the same time
-
-# The cumulative probability distribution for time t: F_t
-cumulative_poisson <- function(x_t, pred){
-  ppois(x_t, mean(pred))
-}
-
+# does the data look like it comes from the predictive probability distribution?
 reliability <- function(x_t, pred) {
   if(!require(incidence)) stop("incidence is missing")
     reliability <- array(NA, dim = c(nrow(x_t))) # nrow(data) is how many days we have hidden data for
     for (i in 1:nrow(x_t)){
-      reliability[i] <- cumulative_poisson(x_t[i], pred[i, ])
+      reliability[i] <- ppois(x_t[i], mean(pred[i, ])) # cumulative_poisson(x_t[i], pred[i, ])
+      # reliability[i] <- dpois(x_t[i], mean(pred[i, ]))
+      # reliability[i] <- sum(pred[i, ] == x_t[i]) / length(pred[i, ])
+      # How many times is prediction == true value?
+      # ppois calculates the cumulative probability distribution for time t: F_t
+      # want the probability that there is x_t number of cases
     }
+    # Next you apply a test of uniformity to these CDFs - chi-squared?
+    # If they're uniform, the predictive distribution is the true data distribution
+    
     return(reliability)
-  # anderson-darling <- function(data, pred){
-  #   anderson-darling <- array(NA, dim = c(hidden_days))
-  #   for (i in 1:hidden_days){
-  #   ad.test()
-  #   }
-  #   return(anderson-darling)
-  # }
 }
 
+uniformity <- function(reliability) {
+  if (sum(reliability) == 0) {
+    uniformity <- NA
+  } else{
+    uniformity <- (chisq.test(reliability)$p.value)
+  }
+  return(uniformity)
+}
 
 
 ## Sharpness
@@ -158,7 +162,10 @@ sharpness <- function(pred){
   # array for storing daily sharpness
   sharpness <- array(NA, dim = c(nrow(pred)))
   for (i in 1:nrow(pred)){
-    sharpness[i] <- 1 - (MADM(as.vector(pred[i, ])) / median(as.vector(pred[i, ]))) # median is the forecast median
+    # don't want to divide by 0 but sharpness is relative - move the projections a bit
+    pred_ind <- as.vector(pred[i, ] + 1)
+
+    sharpness[i] <- 1 - (MADM(pred_ind) / median(pred_ind)) # median is the forecast median
   }
   return(sharpness)
 }
@@ -283,7 +290,7 @@ output <- function() {
     cutoff_time <- sim_gen_data$delta * combo_list[i, 1] # the time at which observed data stops
     proj_end <- sim_gen_data$delta * combo_list[i, 2] # the time at which projection ends
     proj_start <- cutoff_time + 1 # the time at which projection starts
-    
+
     # if (i == 7) {
     #   print("We should have NAs here")
     # }
@@ -298,24 +305,37 @@ output <- function() {
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
     proj_sharp <- sharpness(proj_window)
     proj_bias <- bias(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
-    proj_bias_score <- bias_score(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
+    # proj_bias_score <- bias_score(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
     proj_rmse <- rmse(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
-    proj_rmse_sum <- sum(proj_rmse, na.rm = TRUE)
+    # Window-specific metrics
+    proj_rel_test <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
+    proj_rmse_sum <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
+    proj_bias_score <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
+    for (j in 1:(combo_list[i, 2] - combo_list[i, 1])){
+      window_end <- sim_gen_data$delta * j
+      window_start <- (window_end - sim_gen_data$delta) + 1
+      proj_rel_test[j] <- uniformity(proj_rel[window_start:window_end])
+      proj_rmse_sum[j] <- sum(proj_rmse[window_start:window_end], na.rm = TRUE)
+      proj_bias_score[j] <- mean(proj_bias[window_start:window_end])
+    }
     
     # make an array for storing the prediction metrics for a given projection
     proj_metrics <- data.frame(dataset = sim_hash,
                                cali_window_size = cutoff_time,
                                no_cali_cases = obs_incidence[1:cutoff_time, ]$n,
                                proj_window_size = sim_gen_data$delta,
+                               proj_window_no = rep(1:(combo_list[i, 2] - combo_list[i, 1]), each = sim_gen_data$delta),
                                disease = "ebola",
                                days_since_data = c(1:(proj_end - cutoff_time)),
                                reliability = proj_rel,
+                               rel_test = rep(proj_rel_test, each = sim_gen_data$delta), # test for uniformity of reliability for a time window 
                                sharpness = proj_sharp,
                                bias = proj_bias,
-                               bias_score = proj_bias_score,
-                               rmse = proj_rmse,
-                               sum_rmse = proj_rmse_sum)
-    
+                               # bias_score = proj_bias_score,
+                               bias_score = rep(proj_bias_score, each = sim_gen_data$delta),
+                               rmse = proj_rmse, #)
+                               sum_rmse = rep(proj_rmse_sum, each = sim_gen_data$delta))
+
     # save this projection for this window
     save(proj_window, file = paste("proj_window_", i, ".RData", sep = ""))
     
@@ -340,4 +360,4 @@ multi_output <- function(n_simulations) {
   return(print("Finished all projections"))
 }
 
-multi_output(1)
+# multi_output(1)
