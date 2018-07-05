@@ -16,14 +16,121 @@ In my forecasting folder, I have a folder called simulations, in which I hold al
 ```{r collate_csvs}
 library(data.table)
 
-setwd("/home/evelina/Development/forecasting/simulations/")
+setwd("/home/evelina/Development/forecasting/simulations/ebola_test_3/")
 
 # list all files in directory named full_proj_metrics.csv
-output_files <- list.files("/home/evelina/Development/forecasting/simulations/", pattern = "full_proj_metrics.csv", 
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/ebola_test_3/", pattern = "full_proj_metrics.csv", 
                            full.names = TRUE, recursive = TRUE)
 
 # read and row bind all data sets
 combo_table <- rbindlist(lapply(output_files, fread))
 ```
 
-## Linear models
+## Visualisation of metrics
+
+To see how the collated simulations' metrics are distributed, I will plot them.
+
+### Reliability
+
+The value that I really care about here is the value for uniformity for each projection window (calculated by the chi-squared test) but currently I have daily CDFs. I want to collate the data so that I have the data for each projection projection day for each projection window. Therefore I care about days_since_data, proj_window_number, and cali_window_size.
+
+```{r reliability}
+library(dplyr)
+library(ggplot2)
+
+# subset the big combo table to calculate daily reliability and plot
+cali_window <- unique(combo_table$cali_window_size)
+
+for (i in c(cali_window)) {
+  cali_table <- dplyr::filter(combo_table, cali_window_size == i)
+  proj_window <- unique(cali_table$proj_window_no)
+  cali_table$proj_window_no <- as.factor(cali_table$proj_window_no)
+  proj_plot <- ggplot(cali_table, aes(x = proj_window_no, y = reliability)) + 
+                 geom_violin(trim = TRUE, fill = "lightskyblue") +
+                 coord_cartesian(ylim = c(0.75, 1)) +
+                 geom_boxplot(width = 0.05) +
+                 facet_wrap(~ pred_type) +
+                 labs(title = paste("Reliability for calibration window of size", i, sep = " "))
+  print(proj_plot)
+}
+```
+
+### Sharpness
+
+Here I care about the daily value of sharpness - ie. how spread out the predictions are. 
+
+Sharpness lowers with increasing days, but if the outbreak dies out early, the projections will be at 0 at which point sharpness is 1 because there are no cases. Note that because sharpness looks at medians, it does not do a good job at taking outliers into account, that's what RMSE is for.
+
+```{r sharpness}
+library(dplyr)
+library(ggplot2)
+
+# subset the big combo table to calculate daily reliability and plot
+cali_window <- unique(combo_table$cali_window_size)
+
+for (i in c(cali_window)) {
+  cali_table <- dplyr::filter(combo_table, cali_window_size == i)
+  proj_window <- unique(cali_table$proj_window_no)
+  cali_table$proj_window_no <- as.factor(cali_table$proj_window_no)
+  proj_plot <- ggplot(cali_table, aes(x = proj_window_no, y = sharpness)) + 
+                 geom_violin(trim = TRUE, fill = "lightskyblue") +
+                 coord_cartesian(ylim = c(0, 1)) +
+                 geom_boxplot(width = 0.05) +
+                 facet_wrap(~ pred_type) +
+                 labs(title = paste("Sharpness for calibration window of size", i, sep = " "))
+  print(proj_plot)
+}
+# Seeing why there are no violin plots for this combination - there is data but I guess it's just not being plotted..?
+# combo_table_50 <- subset(combo_table, cali_window_size == 50)
+# 
+# combo_table_20_3 <- subset(combo_table, cali_window_size == 20 &
+#                         pred_type == 3)
+```
+
+### Bias
+
+This says whether your projections are mostly above or below the true value. The bias score can also be used to compare different projection windows - it might need to be done for windows of 10 though.
+
+```{r bias}
+library(dplyr)
+library(ggplot2)
+
+# subset the big combo table to calculate daily reliability and plot
+cali_window <- unique(combo_table$cali_window_size)
+
+for (i in c(cali_window)) {
+  cali_table <- dplyr::filter(combo_table, cali_window_size == i)
+  proj_window <- unique(cali_table$proj_window_no)
+  cali_table$proj_window_no <- as.factor(cali_table$proj_window_no)
+  proj_plot <- ggplot(cali_table, aes(x = proj_window_no, y = bias)) + 
+                 geom_violin(trim = TRUE, fill = "lightskyblue") +
+                 coord_cartesian(ylim = c(-1, 1)) +
+                 geom_boxplot(width = 0.05) +
+                 facet_wrap(~ pred_type) +
+                 labs(title = paste("Bias for calibration window of size", i, sep = " "))
+  print(proj_plot)
+}
+```
+
+### RMSE
+
+```{r rmse}
+library(dplyr)
+library(ggplot2)
+
+# subset the big combo table to calculate daily reliability and plot
+cali_window <- unique(combo_table$cali_window_size)
+
+for (i in c(cali_window)) {
+  cali_table <- dplyr::filter(combo_table, cali_window_size == i)
+  proj_window <- unique(cali_table$proj_window_no)
+  cali_table$proj_window_no <- as.factor(cali_table$proj_window_no)
+  proj_plot <- ggplot(cali_table, aes(x = proj_window_no, y = rmse)) + 
+                 geom_violin(trim = TRUE, fill = "lightskyblue") +
+                 geom_boxplot(width = 0.05) +
+                 facet_wrap(~ pred_type) +
+                 # coord_cartesian(ylim = c(0, 300)) +
+                 labs(title = paste("RMSE for calibration window of size", i, sep = " "))
+  print(proj_plot)
+}
+```
