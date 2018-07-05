@@ -50,7 +50,7 @@ full_data <- function() {
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
-  n_traj <- 100 # 10000
+  n_traj <- 10000 # 10000
 
   full_data <- list("outbreak_data" = outbreak_data, "serial_interval" = serial_interval, 
                     "mu" = mu, "sigma" = sigma, "delta" = delta, "no_chunks" = no_chunks, 
@@ -118,11 +118,11 @@ reliability <- function(x_t, pred) {
   if(!require(incidence)) stop("incidence is missing")
     reliability <- array(NA, dim = c(nrow(x_t))) # nrow(data) is how many days we have hidden data for
     for (i in 1:nrow(x_t)) {
-      lower_p <- (ppois((x_t - 1), mean(pred[i, ])) + 1e-7) # don't want to include the p into the boundary
-      upper_p <- (ppois((x_t + 1), mean(pred[i, ])) - 1e-7)
-      reliability[i] <- runif(1, min = lower_p, max = upper_p)
+      # lower_p <- (ppois((x_t - 1), mean(pred[i, ])) + 1e-7) # don't want to include the p into the boundary
+      # upper_p <- (ppois((x_t + 1), mean(pred[i, ])) - 1e-7)
+      # reliability[i] <- runif(1, min = lower_p, max = upper_p)
       
-      # reliability[i] <- ppois(x_t[i], mean(pred[i, ])) # cumulative_poisson(x_t[i], pred[i, ])
+      reliability[i] <- ppois(x_t[i], mean(pred[i, ])) # cumulative_poisson(x_t[i], pred[i, ])
       # ppois calculates the cumulative probability distribution for time t: F_t
       # want the probability that there is x_t number of cases
     }
@@ -139,6 +139,27 @@ uniformity <- function(reliability) {
     uniformity <- (chisq.test(reliability)$p.value)
   }
   return(uniformity)
+}
+
+ad_test <- function(reliability) {
+  # devtools::install_github("bbolker/ADmarsaglia")
+  if(!require(ADmarsaglia)) stop("ADmarsaglia is missing")
+  ordered_array <- reliability[order(reliability)] # already a CDF - but need to order smallest to largest
+  ad_score <- ADtest(ordered_array)
+  # ad_pvalue <- AD_pval(length(reliability), ad_score)
+  # shapiro <- array(NA, dim = c(length(reliability))) # empty array
+  # 
+  # for (i in 1:length(reliability)) {
+  #   shapiro[i] <- (((2 * i) - 1) / length(reliability)) * (log(punif(ordered_array[i])) + 
+  #                 log(punif(1 - ordered_array[length(reliability) + 1 - i])))
+  # }
+  # 
+  # sum_shapiro <- sum(shapiro)
+  # ad_score <- -length(reliability) - sum_shapiro
+  # if (ad_score == Inf) {
+  #   ad_score <- 1000
+  # }
+  return(ad_score$p.value)
 }
 
 
@@ -171,17 +192,17 @@ sharpness <- function(pred){
   return(sharpness)
 }
 
-sum_sharpness <- function(pred){
-  # array for storing daily sharpness
-  # sum up the number of cases in a prediction window for each projection and avoid it being 0
-  # don't want to divide by 0 but sharpness is relative - move the projections a bit
-  sum_pred <- array(NA, dim = c(ncol(pred)))
-  for (i in 1:ncol(pred)){
-    sum_pred[i] <- as.vector(sum(pred[ , i]) + 1)
-  }
-  sharpness <- 1 - (MADM(sum_pred) / median(sum_pred))
-  return(sharpness)
-}
+# sum_sharpness <- function(pred){
+#   # array for storing daily sharpness
+#   # sum up the number of cases in a prediction window for each projection and avoid it being 0
+#   # don't want to divide by 0 but sharpness is relative - move the projections a bit
+#   sum_pred <- array(NA, dim = c(ncol(pred)))
+#   for (i in 1:ncol(pred)){
+#     sum_pred[i] <- as.vector(sum(pred[ , i]) + 1)
+#   }
+#   sharpness <- 1 - (MADM(sum_pred) / median(sum_pred))
+#   return(sharpness)
+# }
 
 
 
@@ -268,14 +289,14 @@ rmse <- function(x_t, pred){
 
 # Aggregated RMSE for a given time window
 # Feed in the $n of the incidence object
-sum_rmse <- function(x_t, pred){
-  sum_pred <- array(NA, dim = c(ncol(pred)))
-  for (i in 1:ncol(pred)){
-    sum_pred[i] <- as.vector(sum(pred[ , i]))
-  }
-  rmse <- sqrt(mean_squared_diff(x_t, sum_pred))
-  return(rmse)
-}
+# sum_rmse <- function(x_t, pred){
+#   sum_pred <- array(NA, dim = c(ncol(pred)))
+#   for (i in 1:ncol(pred)){
+#     sum_pred[i] <- as.vector(sum(pred[ , i]))
+#   }
+#   rmse <- sqrt(mean_squared_diff(x_t, sum_pred))
+#   return(rmse)
+# }
 
 
 
@@ -294,10 +315,10 @@ output <- function() {
   
   # Create a directory into which I store this simulation
   sim_hash <- digest(sim_gen_data) # unique identifier for simulation
-  dir.create(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
+  dir.create(paste("/home/evelina/Development/forecasting/simulations/ebola_test_4/", sim_hash, sep = ""))
   
   # Set this directory as the working directory so files end up in the right place
-  setwd(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
+  setwd(paste("/home/evelina/Development/forecasting/simulations/ebola_test_4/", sim_hash, sep = ""))
   
   # Projections and prediction metrics
   # Incidence object for the outbreak
@@ -331,26 +352,40 @@ output <- function() {
     
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window) # daily reliability
     proj_bias <- bias(obs_incidence[proj_start:proj_end, ]$counts, proj_window) # daily bias
+    proj_sharp <- sharpness(proj_window)
+    proj_rmse <- rmse(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
     
     # Start up arrays for storing the metrics for all projection windows
-    proj_rel_test <- array(NA, dim = c(window_n))
-    proj_bias_score <- array(NA, dim = c(window_n))
-    proj_sharp <- array(NA, dim = c(window_n))
-    proj_rmse_sum <- array(NA, dim = c(window_n))
+    proj_rel_test <- array(NA, dim = c(window_n)) # reliability
+    proj_bias_mean <- array(NA, dim = c(window_n)) # bias
+    proj_sharp_mean <- array(NA, dim = c(window_n)) # sharpness
+    proj_rmse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
+    proj_group <- array(NA, dim = c(window_n)) # identifies what types of projections the window contains
     
     # Calculate prediction metrics by projection window    
     for (j in 1:window_n){
       window_end <- sim_gen_data$delta * j # the time at which projection window ends
       window_start <- window_end - (sim_gen_data$delta - 1) # the time at which projection window starts
+      
       # proj_rel_test[j] <- uniformity(proj_rel[window_start:window_end]) # window-specific reliability
-      proj_bias_score[j] <- mean(proj_bias[window_start:window_end])
-      proj_sharp[j] <- sum_sharpness(proj_window[window_start:window_end, ])
-      proj_rmse_sum[j] <- rmse(obs_incidence[window_start:window_end, ]$n, proj_window[window_start:window_end])
+      # proj_bias_score[j] <- mean(proj_bias[window_start:window_end])
+      # proj_sharp[j] <- sum_sharpness(proj_window[window_start:window_end, ])
+      # proj_rmse_sum[j] <- rmse(obs_incidence[window_start:window_end, ]$n, proj_window[window_start:window_end])
+      
+      proj_rel_test[j] <- ad_test(proj_rel[window_start:window_end]) # window-specific reliability
+      proj_sharp_mean[j] <- mean(proj_sharp[window_start:window_end]) # window-specific sharpness
+      proj_bias_mean[j] <- mean(proj_bias[window_start:window_end]) # window-specific bias
+      proj_rmse_mean[j] <- mean(proj_rmse[window_start:window_end]) # window-specific RMSE
+
+      if (sum(proj_window[window_start:window_end, ]) == 0) {
+        proj_group[j] <- 1 # the projections only contain zeroes
+      } else if (any(colSums(proj_window[window_start:window_end, ]) == 0)) {
+        proj_group[j] <- 2 # the projections contain some zeroes
+      } else {
+        proj_group[j] <- 3 # there are no projections that are just zeroes
+      }
     }
 
-    # proj_sharp <- sharpness(proj_window)
-    # proj_rmse <- rmse(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
-    
     # Window-specific metrics
     # proj_rel_test <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
     # proj_rmse_sum <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
@@ -371,26 +406,10 @@ output <- function() {
                                proj_window_no = c(1:(combo_list[i, 2] - combo_list[i, 1])),
                                disease = "ebola",
                                reliability = proj_rel_test, 
-                               sharpness = proj_sharp,
-                               bias_score = proj_bias_score,
-                               sum_rmse = proj_rmse_sum)
-    
-    # make an array for storing the prediction metrics for a given projection
-    # proj_metrics <- data.frame(dataset = sim_hash,
-    #                            cali_window_size = cutoff_time,
-    #                            no_cali_cases = obs_incidence[1:cutoff_time, ]$n,
-    #                            proj_window_size = sim_gen_data$delta,
-    #                            proj_window_no = rep(1:(combo_list[i, 2] - combo_list[i, 1]), each = sim_gen_data$delta),
-    #                            disease = "ebola",
-    #                            days_since_data = c(1:(proj_end - cutoff_time)),
-    #                            reliability = proj_rel,
-    #                            rel_test = rep(proj_rel_test, each = sim_gen_data$delta), # test for uniformity of reliability for a time window 
-    #                            sharpness = proj_sharp,
-    #                            bias = proj_bias,
-    #                            # bias_score = proj_bias_score,
-    #                            bias_score = rep(proj_bias_score, each = sim_gen_data$delta),
-    #                            rmse = proj_rmse, #)
-    #                            sum_rmse = rep(proj_rmse_sum, each = sim_gen_data$delta))
+                               sharpness = proj_sharp_mean,
+                               bias = proj_bias_mean,
+                               rmse = proj_rmse_mean,
+                               pred_type = proj_group)
 
     # save this projection for this window
     save(proj_window, file = paste("proj_window_", i, ".RData", sep = ""))
