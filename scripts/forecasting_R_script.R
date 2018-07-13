@@ -104,6 +104,14 @@ projection <- function(full_data, obs_incidence, cutoff_time, proj_start, proj_e
   return(proj)
 }
 
+null_projection<- function(obs_incidence, cutoff_time, proj_start, proj_end) {
+  mean_incidence <- mean(obs_incidence[1:cutoff_time, ])
+  proj_dates <- seq(proj_start, proj_end, 1)
+  null_proj <- data.frame(proj_i = array(mean_incidence, dim = c(length(proj_dates))))
+  rownames(null_proj) <- proj_dates
+  return(null_proj)
+}
+
 ######################################
 ## Functions for prediction metrics ##
 ######################################
@@ -252,6 +260,17 @@ bias <- function(x_t, pred){
   return(bias)
 }
 
+bias_null <- function(x_t, pred){
+  bias <- array(NA, dim = c(nrow(x_t)))
+  # print(pred)
+  # print(typeof(as.vector(pred)))
+  pred <- unlist(pred, use.names=FALSE)
+  for (i in 1:nrow(x_t)){
+    bias[i] <- 2 * (expected(heaviside(difference(x_t[i], pred[i])), pred) - 0.5)
+  }
+  return(bias)
+}
+
 # Get single bias score
 bias_score <- function(x_t, pred){
   daily_bias <- bias(x_t, pred)
@@ -287,6 +306,16 @@ rmse <- function(x_t, pred){
   return(rmse)
 }
 
+rmse_null <- function(x_t, pred){
+  rmse <- array(NA, dim = c(length(x_t)))
+  pred <- unlist(pred, use.names = FALSE)
+  for (i in 1:length(x_t)){
+    rmse[i] <- sqrt((x_t[i] - pred[i])^2)
+    # rmse[i] <- sqrt(mean_squared_diff(x_t[i], as.vector(pred[i])))
+  }
+  return(rmse)
+}
+
 # Aggregated RMSE for a given time window
 # Feed in the $n of the incidence object
 # sum_rmse <- function(x_t, pred){
@@ -316,6 +345,14 @@ residual <- function(x_t, pred) {
   return(residual)
 }
 
+residual_null <- function(x_t, pred) {
+  residual <- array(NA, dim = c(length(x_t)))
+  pred <- unlist(pred, use.names = FALSE)
+  for (i in 1:length(x_t)) {
+    residual[i] <- x_t[i] - pred[i]
+  }
+  return(residual)
+}
 
 
 #################################################
@@ -333,10 +370,10 @@ output <- function() {
   
   # Create a directory into which I store this simulation
   sim_hash <- digest(sim_gen_data) # unique identifier for simulation
-  dir.create(paste("/home/evelina/Development/forecasting/simulations/sars_8si/", sim_hash, sep = ""))
+  dir.create(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
   
   # Set this directory as the working directory so files end up in the right place
-  setwd(paste("/home/evelina/Development/forecasting/simulations/sars_8si/", sim_hash, sep = ""))
+  setwd(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
   
   # Projections and prediction metrics
   # Incidence object for the outbreak
@@ -363,6 +400,7 @@ output <- function() {
     # }
     
     proj_window <- projection(sim_gen_data, obs_incidence, cutoff_time, proj_start, proj_end) # projection for the time window
+    null_proj_window <- null_projection(obs_incidence$counts, cutoff_time, proj_start, proj_end)
     
     pdf(paste("projection", i, ".pdf", sep = ""), width = 7, height = 5)
       print(plot(obs_incidence) %>% add_projections(proj_window))
@@ -374,6 +412,11 @@ output <- function() {
     proj_rmse <- rmse(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
     proj_residual <- residual(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
     
+    # The null models
+    null_bias <- bias_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window)
+    null_rmse <- rmse_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window) # root-mean-square-error
+    null_residual <- residual_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window) # residual
+    
     # Start up arrays for storing the metrics for all projection windows
     proj_rel_test <- array(NA, dim = c(window_n)) # reliability
     proj_bias_mean <- array(NA, dim = c(window_n)) # bias
@@ -381,6 +424,10 @@ output <- function() {
     proj_rmse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
     proj_residual_mean <- array(NA, dim = c(window_n)) # residual
     proj_group <- array(NA, dim = c(window_n)) # identifies what types of projections the window contains
+    
+    null_bias_mean <- array(NA, dim = c(window_n)) # bias
+    null_rmse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
+    null_residual_mean <- array(NA, dim = c(window_n)) # residual
     
     # Calculate prediction metrics by projection window    
     for (j in 1:window_n){
@@ -397,6 +444,10 @@ output <- function() {
       proj_bias_mean[j] <- mean(proj_bias[window_start:window_end]) # window-specific bias
       proj_rmse_mean[j] <- mean(proj_rmse[window_start:window_end]) # window-specific RMSE
       proj_residual_mean[j] <- mean(proj_residual[window_start:window_end]) # window-specific RMSE
+      
+      null_bias_mean[j] <- mean(null_bias[window_start:window_end]) # window-specific bias
+      null_rmse_mean[j] <- mean(null_rmse[window_start:window_end]) # window-specific RMSE
+      null_residual_mean[j] <- mean(null_residual[window_start:window_end]) # window-specific RMSE
       
       if (sum(proj_window[window_start:window_end, ]) == 0) {
         proj_group[j] <- 1 # the projections only contain zeroes
@@ -431,6 +482,9 @@ output <- function() {
                                bias = proj_bias_mean,
                                rmse = proj_rmse_mean,
                                residual = proj_residual_mean,
+                               null_bias = null_bias_mean,
+                               null_rmse = null_rmse_mean,
+                               null_residual = null_residual_mean,
                                pred_type = proj_group)
 
     # save this projection for this window
