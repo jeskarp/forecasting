@@ -177,6 +177,16 @@ knitr::opts_chunk$set(fig.pos = 'H')
 \newpage
 \section{Abstract}
 
+\textbf{Background.} Branching process models can be used for predicting disease incidence, this type of model is the basis of the \textit{projections} R package. The performance of the package for early outbreak analysis purposes has not been explored.  
+
+\textbf{Methods.} Three real outbreaks, Ebola, influenza, and SARS, and 80 simulations based on the $R_{0}$ and serial interval distribution of the real outbreaks were created. The \textit{projections} R package was used to predict disease incidence for varying combinations of calibration windows and projection windows. The performance of the projected daily incidence was explored through four metrics: the average residual, root-mean-square error, sharpness, and bias. 
+
+\textbf{Results.} 
+
+\textbf{Conclusion.} It is not a good idea to project too far from the calibration window especially if you have a short calibration window.
+
+\textcolor{red}{The Abstract is still very much a draft}
+
 %%%%%%%%%%%%%%%%%%
 %% Introduction %%
 %%%%%%%%%%%%%%%%%%
@@ -501,6 +511,8 @@ rmse_ratio
 
 The root-mean-square error (RMSE) was also used to quantify the deviation of the models' predicted daily incidence from the true daily incidence, with an emphasis on the outliers. For the Ebola-like simulations' predicted incidence, the null model outperformed the branching process model until a ratio of calibration window size to projection window number of 1 is reached. After this, the interquartile ranges of the branching process model start overlapping with those of the null model, and finally at ratios 6 and 7 the median RMSE for the branching process model is the same or less than that of the null model, though the interquartile ranges still overlap (Fig. \ref{rmse_plot}). The median RMSE for the branching process model was always higher than that of the null model for the influenza and SARS simulations' predicted incidences, though the median RMSEs of the two models did move closer to one another with increasing calibration window size to projection window number ratio (Fig. \ref{rmse_plot}). 
 
+The best-fit linear regression model describing the relationship between RMSE and the explanatory variables was one which included all the explanatory variables, the ratio of calibration window size to projection window number, and the interaction between the two windows for the SARS simulations, while the Ebola and influenza regression models excluded prediction group type from the best-fit model (SI Table \ref{rmse_aic_table}, \ref{rmse_lm_table}). As for the average residual, the association with the strongest evidence after accounting for the other explanatory variables was that between RMSE and projection window number for Ebola and influenza (coefficients 47.79 and 5.33 respectively, p-value 3.63e-133 and 7.48e-196 respectively, SI Table \ref{rmse_lm_table}). The relationship was also positive for SARS (coefficient 0.14, p-value 5.33e-11). This implies that as the projection window number increases, so does the RMSE. This is plausible as a low RMSE is an indicator of reduced deviation from the true incidence and the further a projection window is from the calibration window, the higher the chances are of the predicted values not being near the true values.   
+
 \FloatBarrier
 
 \subsubsection{Sharpness}
@@ -528,7 +540,7 @@ sharpness_type <- ggplot(total_table, aes(factor(pred_type),
 # Table that I print
 sharpness_type
 @
-\caption{Sharpness by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza.}
+\caption{Sharpness by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza. The different prediction types include ones which have trajectories predicting only zero incidence ("only 0"), no trajectories predicting zero incidence ("no 0"), or some trajectories predicting zero incidence ("include 0").}
 \label{sharpness_type_plot}
 \end{figure}
 
@@ -548,11 +560,11 @@ influenza_1 <- sum(influenza_table$pred_type == 1) / nrow(influenza_table)
 influenza_2 <- (sum(influenza_table$pred_type == 2) / nrow(influenza_table)) * 100
 @
 
-The sharpness, described as a measure of how narrow the range of predictions for a given time window are, varied by the types of predictions that were given within a single projection of a simulation. There are three possible types of projections, ones where all of the projection's 10,000 projection trajectories include a prediction of a daily incidence of 0 cases, ones where some of the trajectories include a prediction of daily incidence of 0 cases, and ones where none of the trajectories include a prediction of a  
+The sharpness, described as a measure of how narrow the range of predictions for a given time window are from a scale of 0 (wide) to 1 (narrow), varied by the types of predictions that were given within a single projection of a simulation. There are three possible types of projections: ones where all of the projection's 10,000 projection trajectories include a prediction of a daily incidence of 0 cases, ones where some of the trajectories include a prediction of daily incidence of 0 cases, and ones where none of the trajectories include a prediction of a daily incidence of 0 cases.
 
-For projections of simulations that contained an estimate of a daily incidence of 0, the sharpness varied more wildly than for projections, also dipping to lower sharpnesses than the projections that did not contain a daily incidence of 0, reflecting the possibility of a projection to spiral out of control  (Fig. \ref{sharpness_type_plot}). Additionally, the distribution of sharpness scores within the zero-incidence-including groups was split into two for each simulated disease - either sharpness was very high (above 0.75), or sharpness was lower than the majority of the sharpness distribution for the prediction type group that did not include zero-incidence. For the Ebola simulations, \Sexpr{round(ebola_2, 1)}\% of simulations contained zero-incidence, while \Sexpr{round(influenza_2, 1)}\% and \Sexpr{round(sars_2, 1)}\% of influenza and SARS simulations contained the prediction of zero-incidence, respectively. 
+For projections of simulations that contained an estimate of a daily incidence of 0, the sharpness varied more wildly than for projections, also dipping to lower sharpnesses than the projections that did not contain a daily incidence of 0, reflecting the possibility of a projection to spiral out of control and have a wide range of predictions for a given projection window (Fig. \ref{sharpness_type_plot}). Additionally, the distribution of sharpness scores within the zero-incidence-including groups was split into two for each simulated disease - either sharpness was very higher than that of the group that did not include any zero-incidence, or sharpness was lower than the majority of the sharpness distribution for the prediction type group that did not include zero-incidence (Fig. \ref{sharpness_type_plot}). For the Ebola simulations, \Sexpr{round(ebola_2, 1)}\% of simulations contained zero-incidence, while \Sexpr{round(influenza_2, 1)}\% and \Sexpr{round(sars_2, 1)}\% of influenza and SARS simulations contained the prediction of zero-incidence, respectively. 
 
-\textcolor{red}{I could talk about how zero-incidence reduces with increasing size of calibration windows here with a table showing the percentages in each group by calibration window size if that would be helpful/not completely off-topic.}
+\textcolor{red}{I could talk about how zero-incidence reduces with increasing size of calibration windows here with a table showing the percentages in each group by calibration window size or something if that would be helpful/not completely off-topic.}
 
 \FloatBarrier
 \subsubsection{Bias}
@@ -588,11 +600,13 @@ bias_type <- ggplot(total_bias_table, aes(factor(pred_type),
 # Table that I print
 bias_type
 @
-\caption{Bias by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza for the branching process model (green) and null model (grey).}
+\caption{Bias by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza for the branching process model (green) and null model (grey). The different prediction types include ones which have trajectories predicting only zero incidence ("only 0"), no trajectories predicting zero incidence ("no 0"), or some trajectories predicting zero incidence ("include 0").}
 \label{bias_type_plot}
 \end{figure}
 
 \FloatBarrier
+
+The bias of the predicted incidence of the branching process model, whether the prediction was above or below the true incidence regardless of the magnitude of the difference, was measured against the performance of the null model. The null model often underestimated the daily incidence for prediction windows where the branching process model did not predict zero-incidence at all (Fig. \ref{bias_type_plot}). For prediction windows where the branching process model predicted zero-incidence for some trajectories, the extent of the null model's bias was more varying. For Ebola, the distribution of biases of the null model ranged the whole range from -1 to 1 for prediction windows that the branching process model has included the possibility of zero-incidence for.   
 
 \textcolor{red}{I put my regression and model comparison tables into the Supplementary Information section for now because I felt that otherwise I would have had too many tables in my Results and they take up a lot of space. Do you think any of my tables are so vital that they should be in the Results section rather than the Supplementary Information? Maybe I should try to condense the analyses into a summary table..? Anything that goes in the SI will not be taken into account when marking so everything vital needs to be in Results.}
 
@@ -1424,9 +1438,176 @@ print(tab, hline.after=c(-1, 0, 6, 13, 19), comment = FALSE, math.style.exponent
 
 \newpage
 \section{Notes and outtakes}
-I've also been running some simulations for time windows of 1 week, for a 2-month period all-in-all.
+I've also been running some simulations with a time window of 1 week for an 8-week outbreak all-in-all. This means that for the figures below, I have run the outbreak for 2 months for each disease. I explored this because I figured that weekly projections of outbreaks would be closer to what would be done in real life and thought that it would be interesting to compare how the model's performance for difference diseases changes when you change the time window. The figures below are exactly the same ones as those in the real report, but the data is for a time window of 1 week rather than 1 serial interval. Also, I only ran these for 50 simulations instead of 80.
 
+<<8week_data, echo = FALSE>>=
+library(data.table)
+library(dplyr)
+# Combo tables for the diseases
+# Ebola
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/ebola_8weeks_null/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+# read and row bind all data sets
+ebola_table <- rbindlist(lapply(output_files, fread))
+ebola_table$cali_proj_ratio <- round(ebola_table$cali_window_size / ebola_table$proj_window_no, 1)
+ebola_table$pred_type[ebola_table$pred_type == 1] <- 0
+ebola_table$pred_type[ebola_table$pred_type == 3] <- 1
+# SARS
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/sars_8weeks_null/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+# read and row bind all data sets
+sars_table <- rbindlist(lapply(output_files, fread))
+sars_table$cali_proj_ratio <- round(sars_table$cali_window_size / sars_table$proj_window_no, 1)
+sars_table$pred_type[sars_table$pred_type == 1] <- 0
+sars_table$pred_type[sars_table$pred_type == 3] <- 1
+# Influenza
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/influenza_8weeks_null/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+# read and row bind all data sets
+influenza_table <- rbindlist(lapply(output_files, fread))
+influenza_table$cali_proj_ratio <- round(influenza_table$cali_window_size / influenza_table$proj_window_no, 1)
+influenza_table$pred_type[influenza_table$pred_type == 1] <- 0
+influenza_table$pred_type[influenza_table$pred_type == 3] <- 1
 
+# Combine all diseases into one table
+total_table <- bind_rows(ebola_table, sars_table, influenza_table)
+@
 
+\begin{figure}[h]
+<<residual_plot_8week, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 3>>=
+library(ggplot2)
+text_size <- 5
+
+# Residual by the number of cases in calibration window
+total_table$calno_proj_ratio <- total_table$no_cali_cases / total_table$proj_window_no
+
+residual_calratio <- ggplot(total_table, aes(calno_proj_ratio, residual, color = disease)) + 
+             # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
+             geom_point(size = 0.5, shape = 1) +
+             labs(y = "Residual", x = "Ratio of no. of cases in calibration window to projection window number") +
+             coord_cartesian(ylim = c(-25, 25))
+             # theme(legend.position = "none") +
+
+residual_table <- total_table %>% group_by(disease, cali_proj_ratio) %>% summarise(avg = median(residual), std = sd(residual), q1 = quantile(residual, probs=0.25), q3 = quantile(residual, probs = 0.75))
+                          
+residual_ratio <- ggplot(residual_table, aes(factor(cali_proj_ratio),
+                          y = avg, ymin = q1, ymax = q3, color = factor(disease))) +
+                          # coord_cartesian(ylim = c(-5, 5)) +
+                          geom_hline(yintercept = 0, linetype = "dashed") +
+                          facet_wrap(~disease, scales = "free") +
+                          geom_pointrange(position = position_dodge(width = 0.5), size = 0.3) +
+                          labs(y = "Mean residual", x = "Ratio of calibration window size to projection window number") +
+                          theme(legend.position = "none")
+
+# Plot that I print
+residual_ratio
+@
+\caption{The average residuals for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza by the ratio of calibration window size to the projection window number (how many time windows since the end of observed data). The dots refer to the median residual for a given ratio, while the intervals mark the upper and lower end of the interquartile range.}
+\label{residual_plot_8week}
+\end{figure}
+
+Regarding the residual and RMSE, Ebola was looking the worst at low ratios, now it's influenza. I'm suspecting that it has to do with influenza's low mean serial interval. That being said, SARS is still doing well and better than Ebola. 
+
+\begin{figure}[h]
+<<rmse_plot_8week, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 3>>=
+library(ggplot2)
+text_size <- 5
+
+# RMSE plot with calibration window to projection window ratio
+rmse_table <- total_table %>% group_by(disease, cali_proj_ratio) %>% summarise(avg = median(rmse), std = sd(rmse), q1 = quantile(rmse, probs = 0.25), q3 = quantile(rmse, probs = 0.75), null_avg = median(null_rmse), null_std = sd(null_rmse), null_q1 = quantile(null_rmse, probs = 0.25), null_q3 = quantile(null_rmse, probs = 0.75))
+                          
+rmse_ratio <- ggplot(rmse_table, aes(factor(cali_proj_ratio),
+                     y = avg, ymin = q1, ymax = q3, color = factor(disease))) +
+                     # coord_cartesian(ylim = c(0, 10)) +
+                     scale_y_log10() +
+                     facet_wrap(~disease) + #, scales = "free") +
+                     geom_pointrange(aes(y = null_avg, ymin = null_q1, ymax = null_q3), size = 0.3, color = "gray30") +
+                     geom_pointrange(position = position_dodge(width = 0.5), size = 0.3) +
+                     labs(y = "RMSE", x = "Ratio of calibration window size to projection window number") +
+                     theme(legend.position = "none")
+
+# RMSE plot with everything separately
+rmse_multi_table <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(avg = median(rmse), std = sd(rmse), q1 = quantile(rmse, probs = 0.25), q3 = quantile(rmse, probs = 0.75), null_avg = median(null_rmse), null_std = sd(null_rmse), null_q1 = quantile(null_rmse, probs = 0.25), null_q3 = quantile(null_rmse, probs = 0.75))
+rmse_multi <- ggplot(rmse_table, aes(factor(proj_window_no),
+                     y = avg, ymin = q1, ymax = q3, color = factor(disease))) +
+                     # coord_cartesian(ylim = c(0, 10)) +
+                     scale_y_log10() +
+                     facet_wrap(disease~cali_window_size) + #, scales = "free") +
+                     geom_pointrange(aes(y = null_avg, ymin = null_q1, ymax = null_q3), size = 0.3, color = "black") +
+                     geom_pointrange(position = position_dodge(width = 0.5), size = 0.3) +
+                     labs(y = "RMSE", x = "Ratio of calibration window size to projection window number") +
+                     theme(legend.position = "none")
+
+# Table that I print
+rmse_ratio
+@
+\caption{Root-mean-square errors (RMSE) of predicted daily incidence for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza for a branching process model (coloured) and a null model (black) for different ratios of calibration window size to projection window number. The points represent the median RMSE for a given ratio, while the vertical lines represent the interquartile ranges.}
+\label{rmse_plot_8week}
+\end{figure}
+
+\begin{figure}[h]
+<<sharpness_plot_8week, echo = FALSE, cache = TRUE, fig.width = 7, fig.height = 3>>=
+library(ggplot2)
+text_size <- 5
+
+# RMSE plot with calibration window to projection window ratio
+sharpness_table <- total_table %>% group_by(disease, pred_type) %>% summarise(avg = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75))
+                          
+sharpness_type <- ggplot(total_table, aes(factor(pred_type),
+                     sharpness, color = factor(disease), fill = factor(disease))) +
+                     coord_cartesian(ylim = c(0, 1)) +
+                     # scale_y_log10() +
+                     facet_wrap(~disease) +
+                     # geom_pointrange(position = position_dodge(width = 0.5), size = 0.3) +
+                     geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1)) +
+                     geom_boxplot(position = position_dodge(width = 1), width = 0.1, fill = "white", color = "black") +
+                     labs(y = "Sharpness", x = "Prediction group type") +
+                     theme(legend.position = "none") +
+                     scale_x_discrete(labels = c("only 0", "no 0", "include 0"))
+
+# Table that I print
+sharpness_type
+@
+\caption{Sharpness by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza.}
+\label{sharpness_type_plot_8week}
+\end{figure}
+
+\begin{figure}[h]
+<<bias_plot_8week, echo = FALSE, cache = TRUE, fig.width = 7, fig.height = 3>>=
+library(ggplot2)
+library(tidyr)
+text_size <- 5
+
+# Bias plot split by prediction type
+bias_table <- total_table %>% dplyr::select(disease, pred_type, bias)
+bias_table$bias_type <- "branching"
+null_bias_table <- total_table %>% dplyr::select(disease, pred_type, null_bias)
+null_bias_table$bias_type <- "null"
+names(null_bias_table)[names(null_bias_table) == "null_bias"] <- "bias"
+total_bias_table <- bind_rows(bias_table, null_bias_table)
+
+bias_type <- ggplot(total_bias_table, aes(factor(pred_type),
+                     bias, group = interaction(pred_type, bias_type), color = factor(bias_type), fill = factor(bias_type))) +
+                     coord_cartesian(ylim = c(-1, 1)) +
+                     # scale_y_log10() +
+                     facet_wrap(~disease) +
+                     geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1)) +
+                     # geom_violin(aes(factor(pred_type), null_bias), trim = TRUE, scale = "width", position = position_dodge(width = 2), color = "grey", fill = "grey") +
+                     geom_boxplot(width = 0.2, fill = "white", color = "black", position = position_dodge(width = 1)) +
+                     # geom_boxplot(aes(factor(pred_type), null_bias), position = position_dodge(width = 2), width = 0.2, fill = "white", color = "black") +
+                     labs(y = "Bias", x = "Prediction group type") +
+                     theme(legend.position = "none") +
+                     scale_fill_manual(values = c("chartreuse3", "grey")) +
+                     scale_color_manual(values = c("chartreuse3", "grey")) +
+                     scale_x_discrete(labels = c("only 0", "no 0", "include 0"))
+# Table that I print
+bias_type
+@
+\caption{Bias by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza for the branching process model (green) and null model (grey).}
+\label{bias_type_plot_8week}
+\end{figure}
 
 \end{document}
