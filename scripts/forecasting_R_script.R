@@ -30,9 +30,9 @@ sim_outbreak <- function(si, obs_time, R0) {
 # Aggregated data required for running projections
 full_data <- function() {
   # Serial interval
-  mu <- 8.7 # 11.6 # 2.6 # 8.7 # 3.0 # 8.7 # 19 # SI mean
+  mu <- 11.6 # 11.6 # 2.6 # 8.7 # 3.0 # 8.7 # 19 # SI mean
   # cv <- 0.75 # SI coefficient of variance
-  sigma <- 3.6 # 5.6 # 1.5 # 3.6 # 1.5 # 3.6 # 11.0 # SI standard deviation 
+  sigma <- 5.6 # 5.6 # 1.5 # 3.6 # 1.5 # 3.6 # 11.0 # SI standard deviation 
   
   cv <- sigma / mu # SI coefficient of variance
   # sigma <- cv * mu # SI standard deviation
@@ -46,7 +46,7 @@ full_data <- function() {
   
   # Simulated outbreak
   obs_time <- delta * no_chunks # how long simulation is run for
-  R0 <- 2.7 # 2.0 # 1.77 # 2.7 # 1.5 # 2.7 # 1.71 # R0 of the outbreak
+  R0 <- 2.02 # 2.02 # 1.77 # 2.7 # 1.5 # 2.7 # 1.71 # R0 of the outbreak
   outbreak_data <- sim_outbreak(serial_interval$d(0:30), obs_time, R0)
   
   # Number of trajectories for the projection
@@ -298,22 +298,22 @@ mean_squared_diff <- function(x_t, pred){
 }
 
 # Calculates RMSE for each forecasted timepoint
-rmse <- function(x_t, pred){
-  rmse <- array(NA, dim = c(length(x_t)))
+mse <- function(x_t, pred){
+  mse <- array(NA, dim = c(length(x_t)))
   for (i in 1:length(x_t)){
-    rmse[i] <- sqrt(mean_squared_diff(x_t[i], as.vector(pred[i, ])))
+    mse[i] <- (mean_squared_diff(x_t[i], as.vector(pred[i, ]))) / (x_t[i] + 1)
   }
-  return(rmse)
+  return(mse)
 }
 
-rmse_null <- function(x_t, pred){
-  rmse <- array(NA, dim = c(length(x_t)))
+mse_null <- function(x_t, pred){
+  mse <- array(NA, dim = c(length(x_t)))
   pred <- unlist(pred, use.names = FALSE)
   for (i in 1:length(x_t)){
-    rmse[i] <- sqrt((x_t[i] - pred[i])^2)
+    mse[i] <- ((x_t[i] - pred[i])^2) / (x_t[i] + 1)
     # rmse[i] <- sqrt(mean_squared_diff(x_t[i], as.vector(pred[i])))
   }
-  return(rmse)
+  return(mse)
 }
 
 # Aggregated RMSE for a given time window
@@ -370,10 +370,10 @@ output <- function() {
   
   # Create a directory into which I store this simulation
   sim_hash <- digest(sim_gen_data) # unique identifier for simulation
-  dir.create(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
+  dir.create(paste("/home/evelina/Development/forecasting/simulations/ebola_8si_norm/", sim_hash, sep = ""))
   
   # Set this directory as the working directory so files end up in the right place
-  setwd(paste("/home/evelina/Development/forecasting/simulations/", sim_hash, sep = ""))
+  setwd(paste("/home/evelina/Development/forecasting/simulations/ebola_8si_norm/", sim_hash, sep = ""))
   
   # Projections and prediction metrics
   # Incidence object for the outbreak
@@ -409,45 +409,46 @@ output <- function() {
     proj_rel <- reliability(obs_incidence[proj_start:proj_end, ]$counts, proj_window) # daily reliability
     proj_bias <- bias(obs_incidence[proj_start:proj_end, ]$counts, proj_window) # daily bias
     proj_sharp <- sharpness(proj_window)
-    proj_rmse <- rmse(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
+    proj_mse <- mse(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
     proj_residual <- residual(obs_incidence[proj_start:proj_end, ]$counts, proj_window)
+    full_proj_cases <- obs_incidence[proj_start:proj_end, ]
     
     # The null models
     null_bias <- bias_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window)
-    null_rmse <- rmse_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window) # root-mean-square-error
+    null_mse <- mse_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window) # root-mean-square-error
     null_residual <- residual_null(obs_incidence[proj_start:proj_end, ]$counts, null_proj_window) # residual
     
     # Start up arrays for storing the metrics for all projection windows
     proj_rel_test <- array(NA, dim = c(window_n)) # reliability
     proj_bias_mean <- array(NA, dim = c(window_n)) # bias
     proj_sharp_mean <- array(NA, dim = c(window_n)) # sharpness
-    proj_rmse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
+    proj_mse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
     proj_residual_mean <- array(NA, dim = c(window_n)) # residual
     proj_group <- array(NA, dim = c(window_n)) # identifies what types of projections the window contains
     
     null_bias_mean <- array(NA, dim = c(window_n)) # bias
-    null_rmse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
+    null_mse_mean <- array(NA, dim = c(window_n)) # root-mean-square-error
     null_residual_mean <- array(NA, dim = c(window_n)) # residual
+    
+    proj_cases <- array(NA, dim = c(window_n)) # number of cases in projection window
+    
     
     # Calculate prediction metrics by projection window    
     for (j in 1:window_n){
       window_end <- sim_gen_data$delta * j # the time at which projection window ends
       window_start <- window_end - (sim_gen_data$delta - 1) # the time at which projection window starts
       
-      # proj_rel_test[j] <- uniformity(proj_rel[window_start:window_end]) # window-specific reliability
-      # proj_bias_score[j] <- mean(proj_bias[window_start:window_end])
-      # proj_sharp[j] <- sum_sharpness(proj_window[window_start:window_end, ])
-      # proj_rmse_sum[j] <- rmse(obs_incidence[window_start:window_end, ]$n, proj_window[window_start:window_end])
-      
       proj_rel_test[j] <- ad_test(proj_rel[window_start:window_end]) # window-specific reliability
       proj_sharp_mean[j] <- mean(proj_sharp[window_start:window_end]) # window-specific sharpness
       proj_bias_mean[j] <- mean(proj_bias[window_start:window_end]) # window-specific bias
-      proj_rmse_mean[j] <- mean(proj_rmse[window_start:window_end]) # window-specific RMSE
+      proj_mse_mean[j] <- mean(proj_mse[window_start:window_end]) # window-specific MSE
       proj_residual_mean[j] <- mean(proj_residual[window_start:window_end]) # window-specific RMSE
       
       null_bias_mean[j] <- mean(null_bias[window_start:window_end]) # window-specific bias
-      null_rmse_mean[j] <- mean(null_rmse[window_start:window_end]) # window-specific RMSE
+      null_mse_mean[j] <- mean(null_mse[window_start:window_end]) # window-specific RMSE
       null_residual_mean[j] <- mean(null_residual[window_start:window_end]) # window-specific RMSE
+      
+      proj_cases[j] <- full_proj_cases[window_start:window_end, ]$n
       
       if (sum(proj_window[window_start:window_end, ]) == 0) {
         proj_group[j] <- 1 # the projections only contain zeroes
@@ -458,34 +459,26 @@ output <- function() {
       }
     }
 
-    # Window-specific metrics
-    # proj_rel_test <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
-    # proj_rmse_sum <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
-    # proj_bias_score <- array(NA, dim = c(combo_list[i, 2] - combo_list[i, 1]))
-    # for (j in 1:(combo_list[i, 2] - combo_list[i, 1])){
-    #   window_end <- sim_gen_data$delta * j
-    #   window_start <- (window_end - sim_gen_data$delta) + 1
-    #   proj_rel_test[j] <- uniformity(proj_rel[window_start:window_end])
-    #   proj_rmse_sum[j] <- sum(proj_rmse[window_start:window_end], na.rm = TRUE)
-    #   proj_bias_score[j] <- mean(proj_bias[window_start:window_end])
-    # }
-    
     # make an array for storing the prediction metrics for a given projection
     proj_metrics <- data.frame(dataset = sim_hash,
                                cali_window_size = cutoff_time / sim_gen_data$delta,
                                no_cali_cases = obs_incidence[1:cutoff_time, ]$n,
+                               no_proj_cases = proj_cases,
+                               days_since_case = max(obs_incidence[1:cutoff_time, ]$dates) - max(obs_incidence[1:cutoff_time, ]$dates[obs_incidence[1:cutoff_time, ]$counts > 0]),
                                proj_window_size = sim_gen_data$delta,
                                proj_window_no = c(1:(combo_list[i, 2] - combo_list[i, 1])),
-                               disease = "sars",
+                               disease = "ebola",
                                reliability = proj_rel_test, 
                                sharpness = proj_sharp_mean,
                                bias = proj_bias_mean,
-                               rmse = proj_rmse_mean,
+                               mse = proj_mse_mean,
                                residual = proj_residual_mean,
                                null_bias = null_bias_mean,
-                               null_rmse = null_rmse_mean,
+                               null_mse = null_mse_mean,
                                null_residual = null_residual_mean,
-                               pred_type = proj_group)
+                               pred_type = proj_group,
+                               outbreak_size = obs_incidence[1:(sim_gen_data$delta * sim_gen_data$no_chunks),]$n,
+                               prop_zero = sum(colSums(proj_window[window_start:window_end, ]) == 0) / sim_gen_data$n_traj)
 
     # save this projection for this window
     save(proj_window, file = paste("proj_window_", i, ".RData", sep = ""))
