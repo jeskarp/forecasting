@@ -202,6 +202,8 @@ I certify that this thesis, and the research to which it refers, are the product
 
 The methods used for forecasting disease incidence were developed by members of the R Epidemics Consortium. The empirical outbreak linelists were openly accessible from the Sierra Leone government (Ebola), and the \textit{EpiEstim} (SARS) and \textit{outbreaks} (influenza) R packages.
 
+Additionally, I would like to thank Thibaut Jombart and Anne Cori for providing me with advice throughout the course of my project and giving me feedback on my thesis. 
+
 \textcolor{red}{The second paragraph needs to essentially state what I did not do myself but rather built up on: "The statement should clearly and specifically acknowledge any work of other researchers which you have used, and clearly state which parts of the research were performed by you."}
 
 
@@ -231,7 +233,7 @@ Things I need to take into account:
 \newpage
 \section*{Abstract}
 
-Branching process models can be used for forecasting disease incidence in real-time to aid outbreak response. The performance of branching process models for early outbreak analysis purposes has not yet been evaluated. Three empirical outbreaks, Ebola, influenza, and SARS, and 90 simulations based on the $R_{0}$ and serial interval distribution of the real outbreaks were created. A branching process model was used to predict disease incidence. The performance of the projected daily incidence was explored through four metrics: the average residual, mean-square error, sharpness, and bias. The branching process model tends to overestimate the forecasted daily incidence. Predictive branching process model works best on SARS. Average residual and RMSE get better with increasing proportion of calibration window size to projection window number. Sharpness and bias vary by prediction type. It is not a good idea to project too far from the calibration window especially if you have a short calibration window.
+Branching process models can be used for forecasting disease incidence in real-time to aid outbreak response. The performance of branching process models for early outbreak analysis purposes has not yet been evaluated. Three empirical outbreaks, Ebola, influenza, and SARS, and 90 simulations based on the $R_{0}$ and serial interval distribution of the real outbreaks were created. A branching process model was used to predict disease incidence. The performance of the projected daily incidence was explored through four metrics: the average residual, mean-square error, sharpness, and bias. The branching process model tends to overestimate the forecasted daily incidence. Predictive branching process model works best on SARS. Average residual and MSE get better with increasing proportion of calibration window size to projection window number. Sharpness and bias vary by prediction type. It is not a good idea to project too far from the calibration window especially if you have a short calibration window.
 
 %%%%%%%%%%%%%%%%%%
 %% Introduction %%
@@ -243,21 +245,19 @@ Branching process models can be used for forecasting disease incidence in real-t
 
 %%%%%%%%%%
 
-\textcolor{red}{Thibaut's suggested structure:
-1) transmissibility at the core of epi-modelling 2) used for informing response 3) models 4) limited evaluation of performances 5) aim of my project.}
-\textcolor{red}{Subsections will be removed once done.}
+% \textcolor{red}{Thibaut's suggested structure:
+% 1) transmissibility at the core of epi-modelling 2) used for informing response 3) models 4) limited evaluation of performances 5) aim of my project.}
+% \textcolor{red}{Subsections will be removed once done.}
 
-\subsection{Transmissibility at the core of epi-modelling}
+% \subsection{Transmissibility at the core of epi-modelling}
 
 When modelling infectious disease outbreaks, the disease's effective reproduction number, often denoted as $R$, is of particular interest. $R$ refers to the number of susceptible individuals that an infectious individual infects on average \citep{Vynnycky2010}. In other words, it is a measure of the disease's transmissibility. Due to this, $R$ can be used as an indicator for whether the disease's transmission is increasing or decreasing at a given timepoint \citep{Vynnycky2010}. 
 
 $R$ is impacted by disease incidence, defined as the number of new cases for a given time period. If $R$ is above 1, each infected individual infects on average more than one susceptible individual and thus the number of cases is increasing \citep{Vynnycky2010}. If $R$ is below 1, each infected individual infects fewer than one person on average, implying that the number of cases is on the decline \citep{Vynnycky2010}.
 
-\subsection{Epi-modelling informing response}
+% \subsection{Epi-modelling informing response}
 
 It is important to have a grasp of the current $R$ and numbers of future incidence in order to inform outbreak response and scaling. Numerous past outbreaks have utilised forecasting to answer questions pertaining to the future of the outbreak \citep{Baguelin2010, Lessler2014, Kraemer2017, Barry2018}. 
-
-% Outbreaks: SARS, pandemic flu \citep{Baguelin2010}, MERS \citep{Lessler2014}, Ebola 2018 \citep{Barry2018}, yellow fever \citep{Kraemer2017}. 
 
 For instance, during the 2009 pandemic H1N1 influenza in England, the peak of the epidemic as well as the cost-effectiveness of various vaccination strategies for the autumn of 2009 were predicted as the pandemic progressed in real-time \citep{Baguelin2010}.
 
@@ -266,36 +266,56 @@ The Middle-Eastern Respiratory Syndrome (MERS) outbreak in the Kingdom of Saudi 
 
 Another example is the 2015-2016 yellow fever outbreak in Angola and the Democratic Republic of Congo, during which modellers were attempting to predict where to yellow fever would spread next \citep{Kraemer2017}. This was done by utilising data sets on consisting of the information such as what areas the mosquito vectors were viable in and human mobility in addition to basic information on daily incidence \citep{Kraemer2017}.  
 
-A more recent example of the usage of forecasting in an outbreak scenario includes a study of the Ebola outbreak of 2018 in the Democratic Republic of Congo, where data from April 30th to May 24th was available \citep{Barry2018}. Here incidence forecasting was used to determine that even in the worst case scenario, the affected areas would have been capable of isolating all required individuals as long as the outbreak did not expand \citep{Barry2018}. 
+More recently, incidence forecasting was used during the Ebola outbreak of 2018 in the Democratic Republic of Congo, where data from April 30th to May 24th was available \citep{Barry2018}. Here it was determined that even in the worst case scenario, the affected areas would have been capable of isolating all required individuals as long as the outbreak did not expand \citep{Barry2018}. 
 
-\subsection{Models}
+One of the earliest cases of incidence forecasting was applied by William Farr on the smallpox epidemic of 1837 to 1839. He forecasted the reduction in smallpox cases with surprising accuracy by assuming that the ratio between his estimates of quarterly reproduction numbers (calculated as the ratio of cases in a given quarter to those in the preceding quarter) remained constant \citep{Neuberger2013, Santillana2018}. Since Farr's initial attempts, many methods have been developed for inferring $R$ from incidence and estimating the number of future disease cases.
+% This led to the birth of Farr's law stating that an epidemic's shape can be approximated by a normal curve, which has since faced some criticism regarding the conditions under which it can be applied \citep{Neuberger2013, Artzrouni1990}.
 
-%Many methods have been developed for inferring $R$ from incidence and estimating the number of future disease cases. These methods include but are not limited to linear, compartmental, and branching process models.
+% \subsection{Models}
 
-One of the earliest cases of incidence forecasting was applied by William Farr on the smallpox epidemic of 1837 to 1839. He forecasted the reduction in smallpox cases with surprising accuracy by assuming that the ratio between his estimates of quarterly reproduction numbers (calculated as the ratio of cases in a given quarter to those in the preceding quarter) remained constant \citep{Santillana2018}. This led to the birth of Farr's law stating that an epidemic's shape can be approximated by a normal curve, which has since faced some criticism regarding the conditions under which it can be applied \citep{Neuberger2013, Artzrouni1990}.
+% \subsubsection{Other models}
+% \textcolor{red}{Do not go into detail on how the other models work (provide references instead?). Talk about usage instead?}
 
-Since these initial attempts, incidence forecasting has become more sophisticated with the development of modelling methods such as compartmental models. Compartmental models have compartments for every disease category of interest, in addition to rates describing the movement in and out of the compartments \citep{Anderson1991}. A common example of this type of model is the SIR model, where there are compartments for susceptible (S), infected (I), and recovered (R) individuals, and rates of infection and recovery linking S to I and I to R respectively \citep{Anderson1991}. A compartmental model can be fit to existing incidence data through estimating ranges of values that the model parameters can take by for example using particle Markov Chain Monte Carlo \citep{Funk2018}. This fitted model can then be used to obtain daily incidence forecasts \citep{Funk2018}.
+For instance, $R$ can be estimated and used for forecasting incidence using a exponential growth rate model where a growth rate $r$ is fit to the cumulative incidence, which can then be used to estimate $R$ \citep{Chowell2007, Wallinga2007}. This relies on the assumption that the early growth of the epidemic is exponential \citep{Chowell2007}. A compartmental model, characterised by it having compartments for every disease category of interest and rates describing the movement in and out of the compartments, is another method that can be used to forecast daily incidence \citep{Anderson1991, Funk2018}. This is achieved by fitting the model to existing incidence data through estimating ranges of values that the model parameters can take by and then using the fitted model to obtain daily incidence forecasts \citep{Funk2018}.
+
+% Compartmental models have compartments for every disease category of interest, in addition to rates describing the movement in and out of the compartments \citep{Anderson1991}. A common example of this type of model is the SIR model, where there are compartments for susceptible (S), infected (I), and recovered (R) individuals, and rates of infection and recovery linking S to I and I to R respectively \citep{Anderson1991}. A compartmental model can be fit to existing incidence data through estimating ranges of values that the model parameters can take by for example using particle Markov Chain Monte Carlo \citep{Funk2018}. This fitted model can then be used to obtain daily incidence forecasts \citep{Funk2018}.
 
 % For such a model, $R$ can be estimated from the growth rate $r$ if the generation interval's duration is assumed to be constant \citep{Wallinga2007}.
 
 %  ($\beta$ and $\gamma$ respectively) ($S$):$R = \frac{\beta \times S}{\gamma}$
 
-Branching process models can be used as an alternative to compartmental models for estimating transmissibility during infectious disease outbreaks. They have a few features that make them distinctive from the previously described models. These features include their ability to consider the full serial interval distribution when forecasting incidence \citep{Wallinga2004, Cori2013}. Additionally, branching process models, unlike compartmental models, assume an infinite pool of susceptibles \citep{Cori2013} \textcolor{red}{I don't need to find a paper that right out states this, it's enough to see this from the lack of a group in the modelling process?}. We can simulate from the model to project future incidence. 
+% \subsubsection{Branching process model}
+% \textcolor{red}{Explain what a branching process model is and maybe give examples of applications}
 
-\textcolor{red}{Thibaut suggested talking about how $R$ can be estimated from the growth rate somewhere in this section - essentially Wallinga \& Lipsitch 2007 - but I felt like if I would put that bit somewhere, it would be in the compartmental model paragraph and that could get confusing.}
+Branching process models are another method for estimating transmissibility and forecasting incidence in real-time during infectious disease outbreaks. A branching process can be used to model the number offspring produced by a given generation of individuals in a stochastic manner. The simplest example of a branching process is one where every individual in a given generation has a random number of offspring, which could result in a tree such as the one shown in Figure \ref{branching_process_ex}.
 
-\subsection{Limited evaluation of performance}
+\begin{figure}[h]
+\centering
+\includegraphics[scale = 0.25]{branching_process_example}
+\caption{A visualisation of what a branching process where each individual in a generation has a random number of offspring could look like.}
+\label{branching_process_ex}
+\end{figure}
 
-In addition to the three discussed here, other incidence forecasting methods exist, but not all methods of estimating incidence perform equally well. In the RAPIDD (Research and Policy for Infectious Disease Dynamics) challenge, different modelling groups were issued with the task of forecasting the incidence of simulated Ebola epidemics and nine different models were compared for the occasion \citep{Viboud2017}. A group utilising the branching process modelling method for its forecasts showed the most promising results, outperforming groups using methods such as compartmental models, logistic growth regression, and other agent-based models \citep{Viboud2017, Nouvellet2017}.
+This theory can be applied to inferring $R$ and forecasting disease incidence. Given an observation window containing the daily incidence of symptom onset for a number of days and a serial interval distribution, a branching process model can be used to infer $R$ by estimating the case-specific $R$ for each observed case. This is achieved through considering the relative likelihood of a given case infecting any other case in the observation window i.e. how likely is it that another case was the offspring that given case \citep{Wallinga2004, Cori2013}. These case-specific $R$s can then be used to obtain a $R$ likelihood distribution for the whole observation window \citep{Cori2013}. This in turn is used to forecast the incidence in the next timestep, as $R$ states how many susceptibles a case infects on average \citep{Nouvellet2017}. These forecasted cases are incorporated into the calculation of a new $R$ using the same method for the following timestep that is forecasted. 
 
-During the Ebola epidemic of 2013-2016, a lack of a ready-to-use tool for which there was a widespread consensus on how it should be used for forecasting epidemics was noted \citep{Cori2017}. \textcolor{red}{I know this from talking to people who were involved with analysing the linelists etc., I tried to find a fitting paper to back this statement up and the closest thing I found was your paper from 2017. It doesn't fully make this point but rather says that there were disagreements on how forecasts should be used. I can change or delete this sentence if misleading.} This led to the development of new tools and accompanying suggestions  for data analysis protocols by groups such as the R Epidemics Consortium (RECON) \citep{RECON2018}. RECON's R package \textit{projections}, for instance, is a forecasting tool that uses a branching process model to predict the number of cases during each of the forecasted days \citep{Jombart2018}. However, branching process model forecasting tools' ability to accurately predict the course of an epidemic in real time has not been evaluated.
+Compared to the previously discussed modelling methods, branching process models have a few distinctive features. These features include their ability to consider the full serial interval distribution when forecasting incidence \citep{Wallinga2004, Cori2013}. Additionally, unlike compartmental models, they assume an infinite pool of susceptibles \citep{Cori2013}. 
 
-\subsection{Aim}
+% \textcolor{red}{I don't need to find a paper that right out states this, it's enough to see this from the lack of a group in the modelling process?}.
+
+% \textcolor{red}{Thibaut suggested talking about how $R$ can be estimated from the growth rate somewhere in this section - essentially Wallinga \& Lipsitch 2007 - but I felt like if I would put that bit somewhere, it would be in the compartmental model paragraph and that could get confusing.}
+
+% \subsection{Limited evaluation of performance}
+
+In addition to the models discussed here, other incidence forecasting methods exist. These methods do not perform equally well when forecasting incidence. In a forecasting challenge organised by the RAPIDD (Research and Policy for Infectious Disease Dynamics) program, different modelling groups were issued with the task of forecasting the incidence of simulated Ebola epidemics and nine different models were compared for the occasion \citep{Viboud2017}. A group utilising the branching process modelling method for its forecasts showed the most promising results, outperforming groups using methods such as compartmental models, logistic growth regression, and other agent-based models \citep{Viboud2017, Nouvellet2017}.
+
+During the Ebola epidemic of 2013-2016, a lack of a ready-to-use tool for which there was a widespread consensus on how it should be used for forecasting epidemics was noted \citep{Cori2017}. 
+%\textcolor{red}{I know this from talking to people who were involved with analysing the linelists etc., I tried to find a fitting paper to back this statement up and the closest thing I found was your paper from 2017. It doesn't fully make this point but rather says that there were disagreements on how forecasts should be used. I can change or delete this sentence if misleading.} 
+This led to the development of new tools and accompanying suggestions  for data analysis protocols by groups such as the R Epidemics Consortium (RECON) \citep{RECON2018}. RECON's R package \textit{projections}, for instance, is a forecasting tool that uses a branching process model to predict the number of cases during each of the forecasted days \citep{Jombart2018}. However, branching process model forecasting tools' ability to accurately predict the course of an epidemic in real time has not been evaluated.
+
+% \subsection{Aim}
 In this study, I aim to decipher the conditions under which a branching process model can or cannot be reliably used to forecast daily incidence. To accomplish this, I have chosen metrics for evaluating the performance of the forecasting branching process model provided by RECON with a particular focus being placed on the methods' performance during the early stages of outbreaks. I have then used the branching process model to forecast daily incidence on Ebola-like, influenza-like, and severe acute respiratory syndrome(SARS)-like simulated outbreaks. This was followed by an assessment of the performance of the model with the performance metrics. I also illustrate the application of this analysis on three empirical outbreaks. 
 
 % Takeouts from the Introduction
-
-% Whether or not the number of cases in an ongoing outbreak is increasing or decreasing is critical information for those in charge of planning outbreak response. If the number of cases is increasing, it can suggest for example that more beds may be needed in hospitals, allowing hospitals to take the necessary precautions for the near future. If the number of cases is reducing, additional care may be put into ensuring that the current outbreak response strategies are maintained until the end of the outbreak.
 
 % Parametric methods include approaches such as branching process and compartmental models, while the usage of epidemic trees represents a non-parametric approach \citep{Wallinga2004, Ferrari2005, Haydon2003}. These inferential methods would be unlikely to result in exactly identical estimated values of $R$ when given the same data. One study compared the $R$ estimates of multiple different models, an exponential growth rate model, two types of compartmental SEIR model, and a stochastic compartmental SIR model on the same Spanish flu outbreak data and found that while there were differences in the $R$ estimates, all of them fell within an acceptable range \citep{Chowell2007}. Altering one's assumptions while keeping the model otherwise unchanged can also result in differing estimates. For example, assumptions regarding contact patterns between individuals affected the R estimate for a model of a H1N1 influenza outbreak \citep{Ajelli2014}.
 
@@ -1104,7 +1124,7 @@ Compared to the simulated outbreaks, the empirical Ebola and influenza outbreaks
 
 \newpage
 \section{Discussion}
-\textcolor{red}{Thibaut and I didn't discuss my Discussion much either, but he would like my discussion to answer questions such as "When does the model work?" "When didn't it work so well" "Are we good at estimating uncertainty?" "Are there any systematic biases?" "I have X amount of data - how far can I project? Can I trust what I have projected for the next serial interval"}
+\textcolor{red}{Thibaut and I didn't discuss my Discussion much either, but he would like it to answer questions such as "When does the model work?" "When didn't it work so well" "Are we good at estimating uncertainty?" "Are there any systematic biases?" "I have X amount of data - how far can I project? Can I trust what I have projected for the next serial interval"}
 
 % \subsection{Summary of findings and general discussion}
 Overall, the analysis of forecasted incidence based on simulated outbreaks of Ebola-like and influenza-like outbreaks found that a forecast is more trustworthy the longer the calibration window is and the closer projection days of interest are to the calibration window (Fig. \ref{all_metric_plot}).
@@ -1117,7 +1137,7 @@ While the branching process model had a tendency of overestimating the forecaste
 
 It is possible that Ebola-like outbreaks were observed to have the greatest overestimations in forecasted incidence due to them also having the largest outbreak sizes (Fig. \ref{sim_dist}). The average residual considers the absolute difference between the projection and true data rather than the relative difference. This means that if one model forecasts 20 cases when there were actually 10 and another 2 cases when there was 1, the average residual of the model that forecasted 20 cases will be worse than the one that predicted 2 cases even though both models forecasted two times too many cases.
 
-The empirical SARS forecasts behaved differently from the Ebola and influenza forecasts and were quite far from the true incidence towards the end of the observation window. While retrospectively the reason for why this happened can be easily explained through noting that this particular outbreak consisted of two peaks of cases instead of one, it does provide a reminder of one of the limitations of the branching process model used for this exercise. The model assumes that that the growth of the outbreak, if it happens, will be exponential. Applying this to an outbreak that does not follow the assumption will result in subpar projections, much like applying Farr's law to the HIV epidemic \citep{Artzrouni1990}. The only problem with avoiding the wrong shape of outbreak for the tool in question is that when it comes to real-time forecasting of outbreaks, its shape is not known in advance. The difficulties faced by modelling methods when encountering a non-exponentially growing outbreak have been noted \citep{Viboud2017}.
+The empirical SARS forecasts behaved differently from the Ebola and influenza forecasts and were quite far from the true incidence towards the end of the observation window. While retrospectively the reason for why this happened can be easily explained through noting that this particular outbreak consisted of two peaks of cases instead of one, it does provide a reminder of one of the limitations of the branching process model used for this exercise. The model assumes that that the growth of the outbreak, if it happens, will be exponential. Applying this to an outbreak that does not follow the assumption will result in subpar projections, much like applying Farr's law to the HIV epidemic \citep{Artzrouni1990}. The only problem with avoiding the wrong shape of outbreak for the tool in question is that when it comes to real-time forecasting of outbreaks, its shape is not known in advance. Others have also noted the difficulties faced by branching process modelling methods when encountering a non-exponentially growing outbreak \citep{Nouvellet2017, Viboud2017}.
 
 One of the limitations of this study is that the performance of the forecasting method is mostly evaluated under ideal circumstances on simulated outbreaks that have been created using a similar model. This means that abnormalities, such as unexpected growth curves, are not a concern and are not considered. Regardless, as the performance of the forecasting method used in this study has not been evaluated before, starting from the ideal scenario could be considered to be a reasonable starting point.
 
@@ -1147,9 +1167,12 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 %%%%%%%%%%%%%%%%
 \newpage
 \bibliographystyle{unsrtnat}
-\bibliography{/home/evelina/Documents/Mendeley/MRes_forecasting.bib}
-
-\textcolor{red}{I think I am allowed to make my references single-spaced}
+\begin{singlespace}
+\begin{group}
+   % \fontsize{11pt}
+  \bibliography{/home/evelina/Documents/Mendeley/MRes_forecasting.bib}
+\end{group}
+\end{singlespace}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Supplementary information %%
@@ -1756,19 +1779,10 @@ print(tab, hline.after=c(-1, 0, 16), comment = FALSE, math.style.exponents = FAL
 
 
 
-
-
-
-
-
-
-
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%
 %% Notes and outtakes %%
 %%%%%%%%%%%%%%%%%%%%%%%%
+
 \newpage
 <<data_sharpness_table, echo = FALSE, results = "asis">>=
 library(xtable)
@@ -3091,32 +3105,5 @@ bias_fig
 % \caption{Bias by prediction type for simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and H1N1 influenza for the branching process model (green) and null model (grey).}
 % \label{bias_type_plot_8week}
 % \end{figure}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 \end{document}
