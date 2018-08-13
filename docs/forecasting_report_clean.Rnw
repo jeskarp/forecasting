@@ -40,6 +40,8 @@
 
 \usepackage{tabularx} % make table page-wide
 
+\usepackage{etoc} % to make Supplementary Info its own ToC
+
 %%%%%%%%%%%%%%%%%%%%%%%
 %% Start of document %%
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -223,9 +225,13 @@ Things I need to take into account:
 \newpage
 \section*{Table of Contents}
 \textcolor{red}{We don't have to have a Table of Contents. This will be deleted when done to save pages}
-\addcontentsline{toc}{section}{Table of Contents}
+% \addcontentsline{toc}{section}{Table of Contents}
 \vspace{-4em}
-\tableofcontents
+% \tableofcontents
+\etocdepthtag.toc{mtchapter}
+\etocsettagdepth{mtchapter}{subsection}
+\etocsettagdepth{mtappendix}{none}
+\tableofcontents
 
 %%%%%%%%%%%%%%
 %% Abstract %%
@@ -250,10 +256,13 @@ Branching process models can be used for forecasting disease incidence in real-t
 % \textcolor{red}{Subsections will be removed once done.}
 
 % \subsection{Transmissibility at the core of epi-modelling}
+Infectious diseases have been estimated to be the cause of approximately XX deaths in 2016 \textcolor{red}{CITE}. While the top of the list is dominated by diseases that are in constant transmission such as malaria and HIV/AIDS, outbreaks of other diseases such as haemorrhagic fevers can be devastating if they spread. Often interventions can be implemented to control outbreak spread, but knowing how the outbreak is developing may be useful when deciding what intervention methods to use and figuring out if the outbreak will worsen. Real-time modelling can be used to make an educated guess as to whether the outbreak is dying out or if one may expect it to grow further.
 
-When modelling infectious disease outbreaks, the disease's effective reproduction number, often denoted as $R$, is of particular interest. $R$ refers to the number of susceptible individuals that an infectious individual infects on average \citep{Vynnycky2010}. In other words, it is a measure of the disease's transmissibility. Due to this, $R$ can be used as an indicator for whether the disease's transmission is increasing or decreasing at a given timepoint \citep{Vynnycky2010}. 
+Global burden of disease study.
 
-$R$ is impacted by disease incidence, defined as the number of new cases for a given time period. If $R$ is above 1, each infected individual infects on average more than one susceptible individual and thus the number of cases is increasing \citep{Vynnycky2010}. If $R$ is below 1, each infected individual infects fewer than one person on average, implying that the number of cases is on the decline \citep{Vynnycky2010}.
+When modelling infectious disease outbreaks, the disease's effective reproduction number, often denoted as $R$, is of particular interest. $R$ refers to the number of susceptible individuals that an infectious individual infects on average \citep{Vynnycky2010}. In other words, it is a measure of the disease's transmissibility. Due to this, $R$ can be used as an indicator for whether the disease's transmissibility is increasing or decreasing at a given timepoint \citep{Vynnycky2010}. 
+
+Disease incidence is impacted by $R$, defined as the number of new cases for a given time period. If $R$ is above 1, each infected individual infects on average more than one susceptible individual and thus the number of incident cases is increasing \citep{Vynnycky2010}. If $R$ is below 1, each infected individual infects fewer than one person on average, implying that the number of incident cases is on the decline \citep{Vynnycky2010}.
 
 % \subsection{Epi-modelling informing response}
 
@@ -349,7 +358,10 @@ All data simulation and analyses presented in this report was conducted on R, a 
 
 \subsection{Outbreaks and predictive branching process model}
 
-Empirical outbreak data for three diseases, Ebola, influenza, and SARS, were chosen to assess the performance of the branching process model (Table \ref{outbreak_table}). For each given outbreak, eighty simulations were run based on the published $R_{0}$, and mean and standard deviation (in days) of the serial interval for each outbreak (Table \ref{outbreak_table}). The simulations were conducted using the \textit{simOutbreak} function from the package \textit{outbreaker}, and each simulation was run for eight times the mean serial interval for a population size of 1 million \citep{Jombart2014}. For projection purposes, a section of this data would later be used to calibrate the predictive branching process model while other sections would be hidden to test the performance of said model.
+Empirical daily incidence data for three diseases, Ebola, influenza, and SARS, were chosen to assess the performance of the branching process model \citep{Team2014, Cori2018, Campbell2018}. Table \ref{outbreak_table} shows the published $R_{0}$, and the mean and standard deviation (in days) of the serial interval for these empirical outbreaks. 
+
+For each given disease, 80 simulations were run based on the published $R_{0}$, and mean and standard deviation (in days) of the serial interval for each outbreak (Table \ref{outbreak_table}). The simulations were conducted using the \textit{simOutbreak} function from the package \textit{outbreaker}, and each simulation was run for eight times the mean serial interval for a population size of 1 million \citep{Jombart2014}. The length of the simulation was therefore 96 days of Ebola, 24 days for influenza, and 72 days for SARS. For projection purposes, a section of this data would later be used to calibrate the predictive branching process model while other sections would be hidden to test the performance of said model.
+\textcolor{red}{REMOVE OUTBREAK DATA SOURCE}
 \textcolor{white}{\citep{Team2014, Leone2014, Cori2018, Fraser2011, Campbell2018, Jombart2018a}}
 % Source for ebola data: http://opendatasl.gov.sl/dataset/ebola-virus-data
 
@@ -383,17 +395,19 @@ outbreak_table[1, 5] <- "19, 20" # "WHO 2014, SL data"
 outbreak_table[2, 5] <- "21, 22" # "EpiEstim, Fraser (2011)"
 outbreak_table[3, 5] <- "23, 24" # "Campbell et al. (2018)"
 
-colnames(outbreak_table) <- c("Disease", "$R_{0}$", "SI mean", "SI SD", "Source")
+colnames(outbreak_table) <- c("Disease", "$R_{0}$", "SI mean (days)", "SI SD (days)", "Source")
 rownames(outbreak_table) <- c("Ebola", "Influenza", "SARS")
 
 tab <- xtable(outbreak_table, digits = 2, caption = "$R_{0}$, and serial interval (SI) mean and standard deviation (SD) in days used for simulating outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and influenza.", label = "outbreak_table")
 align(tab) <- "lXXXXX"
-print(tab, hline.after=c(-1, 0, 3), comment = FALSE, math.style.exponents = FALSE, include.rownames = FALSE, caption.placement = "top", type = "latex", sanitize.rownames.function = identity, tabular.environment = "tabularx", width = "\\textwidth")
+print(tab, hline.after=c(-1, 0, 3), comment = FALSE, math.style.exponents = FALSE, include.rownames = FALSE, caption.placement = "top", type = "latex", sanitize.rownames.function = identity,  sanitize.colnames.function = identity, tabular.environment = "tabularx", width = "\\textwidth")
 @
 
-To estimate incidence for the upcoming days, a branching process forecasting method based on Cori et al.'s method for estimating the reproduction number was used \citep{Cori2013, Jombart2018}. The full details on how the branching process model is used for forecasting can be found in Supplementary Information section 1.1. The information required for forecasting are data on observed daily incidence and a Gamma-distributed serial interval for the disease in question.
+To predict incidence for the upcoming days, a branching process forecasting method based on Cori et al.'s method for estimating the reproduction number was used \citep{Cori2013, Jombart2018}. The full details on how the branching process model is used for forecasting can be found in Supplementary Information section 1.1. The information required for forecasting are data on observed daily incidence and a Gamma-distributed serial interval for the disease in question.
 
-The future incidence for each real and simulated outbreak was forecasted for a given number of time windows by first estimating the reproduction number ($R$) for the outbreak so far using the \textit{get\_R} function in the \textit{earlyR}-package \citep{Jombart2017}\ref{projection_ex}. Future dates' incidence could then be projected based on the likelihood distribution of this $R$ using the \textit{project} function of the \textit{projections}-package \citep{Jombart2018}.
+The future incidence for each real and simulated outbreak was forecasted for a given number of time windows by first estimating the reproduction number ($R$) for the outbreak so far using the \textit{get\_R} function in the \textit{earlyR}-package (Fig. \ref{projection_ex})\citep{Jombart2017}. Future dates' incidence could then be projected based on the likelihood distribution of this $R$ using the \textit{project} function of the \textit{projections}-package \citep{Jombart2018}.
+
+\textcolor{red}{more in-depth explanation} Forecasts for the daily incidence of each empirical and simulated outbreak were obtained as follows. First a distribution of likely values of $R$ were obtained based on the observed incidence in the calibration window and a discretised serial interval \textcolor{red}{get\_R}. This distribution is sampled from in the projection process to obtain likely values of $R$ for the first forecast day \textcolor{red}{sample\_R}. For the following forecast days, the projected daily incidence of the previous forecast days is taken into account when obtaining a forecast. $R$ is resampled for each day. Each projection is composed of 10,000 individual projection trajectories, from which the projection median and projection intervals are calculated. The full details on how the branching process model is used for forecasting can be found in the Supplementary Information section 1.1.
 
 A single time window was defined as one mean serial interval, in days. A single projection window was the size of this time window, while calibration windows were multiples of the time window, with all calibration windows starting from day 0. The differing calibration window lengths are due to the oubreak's force of infection and thus $R$ for a given time window being affected by the cases from previous time windows. The incidence data was hidden for dates that were not within the calibration window.
 
@@ -428,7 +442,7 @@ flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
 flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
 flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
 flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
-                     n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
 
 # Plot R distribution
 R_dataframe <- data.frame(grid = flu_R3$R_grid,
@@ -448,28 +462,48 @@ R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
 
 
 # Plot influenza incidence
-influenza_incidence <- plot(flu_i[1:(delta * 7), ]) %>% add_projections(flu_proj3, quantiles = c(0.05, 0.5)) # the base projection plot
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3, quantiles = c(0.05, 0.5)) # the base projection plot
 projection_plot <- influenza_incidence + 
                    geom_vline(xintercept = 7, linetype = "dashed") +
                    labs(x = "Day") +
-                   coord_cartesian(xlim = c(1, 21)) +
-                   annotation_custom(ggplotGrob(R_plot), xmin = 0.2, xmax = 10, ymin = 80, ymax = 160) +
-                   geom_segment(aes(x = 1, xend = 6.9, y = 35, yend = 35), size = 0.5,
+                   coord_cartesian(xlim = c(1, 18)) +
+                   annotation_custom(ggplotGrob(R_plot), xmin = 0.2, xmax = 6.9, ymin = 100, ymax = 200) +
+                   geom_segment(aes(x = 1, xend = 6.9, y = 70, yend = 70), size = 0.5,
                    arrow = arrow(length = unit(0.3, "cm"))) +
-                   geom_segment(aes(x = 6.9, xend = 1, y = 35, yend = 35), size = 0.5,
+                   geom_segment(aes(x = 6.9, xend = 1, y = 70, yend = 70), size = 0.5,
                    arrow = arrow(length = unit(0.3, "cm"))) +
-                   geom_segment(aes(x = 7.1, xend = 18, y = 35, yend = 35), size = 0.5,
+                   geom_segment(aes(x = 7.1, xend = 18.8, y = 70, yend = 70), size = 0.5,
                    arrow = arrow(length = unit(0.3, "cm"))) +
-                   geom_segment(aes(x = 18, xend = 7.1, y = 35, yend = 35), size = 0.5,
+                   geom_segment(aes(x = 18.8, xend = 7.1, y = 70, yend = 70), size = 0.5,
                    arrow = arrow(length = unit(0.3, "cm"))) +
-                   annotate("text", label = "Calibration window", x = 4, y = 40) +
-                   annotate("text", label = "Projection window", x = 13, y = 40) +
+                   geom_segment(aes(x = 7.1, xend = 9.9, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 9.9, xend = 7.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 10.1, xend = 12.9, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 12.9, xend = 10.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 13.1, xend = 15.9, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 15.9, xend = 13.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 16.1, xend = 18.8, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 18.8, xend = 16.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   annotate("text", label = "Calibration window", x = 4, y = 77) +
+                   annotate("text", label = "Full projection", x = 13, y = 77) +
+                   annotate("text", label = "1", x = 8.6, y = 55) +
+                   annotate("text", label = "2", x = 11.6, y = 55) +
+                   annotate("text", label = "3", x = 14.6, y = 55) +
+                   annotate("text", label = "4", x = 17.6, y = 55) +
                    theme(legend.position = "none")
 # Print plot
 projection_plot
 @
 % \centerline{\includegraphics[width=0.8\textwidth]{projection_example}}
-\caption{A visualisation of a calibration window, utilised for estimating the reproduction number ($R$), and projection window, the days for which the daily incidence is forecasted, for the branching process model. As the projection progresses, the forecasted daily incidence is taken into account when estimating the projected $R$}
+\caption{A visualisation of a calibration window, utilised for estimating the reproduction number ($R$), and full projection for daily incidence forecasts along with its split to individual projection windows later analysed by performance metrics (labelled 1-4). As the projection progresses, the forecasted daily incidence of previous projections is taken into account when estimating the projected $R$.}
 \label{projection_ex}
 \end{figure}
 
@@ -504,7 +538,7 @@ B_{t}(F_{t}, x_{t}) = 2(E_{F_{t}}[H(X - x_{t})] - 0.5)
 \end{equation}
 where $E_{F_{t}}$ is the expectation with respect to the predictive cumulative probability distribution $F_{t}$, and $X$ are independent realisations of a variable with distribution $F_{t}$ \citep{Funk2018}. An unbiased model would have a $B$ of 0, while a constantly overestimating and underestimating models would have a $B$ of 1 and -1, respectively.
 
-To provide a single score for each prediction window, the mean of the daily values for sharpness, bias, mean residual, and RMSE were calculated. The performance of the predictions was analysed in the same manner for both the simulated and empirical outbreaks. 
+To provide a single score for each projection window a , the mean of the daily values for sharpness, bias, mean residual, and RMSE were calculated. The performance of the predictions was analysed in the same manner for both the simulated and empirical outbreaks. 
 
 % Reliability, the predictive model's ability to assess uncertainty, was assessed by identifying how likely it was that the true incidence for a given day would have come from the distribution of predictions for that given timepoint. This was calculated by using Funk et al.'s approach where the uniformity of predictions' cumulative distribution functions is tested with an Anderson-Darling test, with a modification allowing for the discrete Poisson distribution to be perceived as continuous. EXPLAIN HOW I DID THIS.
 %The RMSE and bias for the branching process model's prediction windows was compared against a null model where the predicted incidence for the projection windows was the mean of the incidence of the calibration window.while for reliability, the p-value for the Anderson-Darling test on the data for the given prediction window was calculated.
@@ -535,7 +569,7 @@ The correlation between the performance metrics was also explored through observ
 % The real and simulated outbreaks were fitted with multiple calibration windows and projection windows, as exemplified with the real outbreak datasets in Fig. \ref{projection_plot}. As is seen in the figure, some time windows are projected for more than once, as often multiple projection windows at different distances from the calibration window are predicted based on a single calibration window. The predicted daily incidence for the real Ebola and influenza outbreaks is overestimated especially when forecasts are based on early outbreak disease incidence data and incidence is forecasted for many projection windows
 % \subsubsection{Prediction metrics}
 
-The simulated outbreaks based on empirical outbreak data varied in total outbreak size. The Ebola-like simulations experienced the largest outbreaks of up to 600 cases, whilst the influenza outbreaks barely reached 50 cases (SI Fig. \ref{sim_dist}). This wide variety in outbreak size resulted in forecasts of irregular quality. Figure \ref{good_bad_plot} exemplifies this with three representative forecasts for simulated Ebola-like outbreaks. While some forecasts were near the true incidence and with a relatively narrow range of projections, others had either a wide range of projections, a range that did more often not include the true daily incidence, or both.  
+The simulated outbreaks varied in total outbreak size both within and between diseases. The length of simulated outbreak also varied between diseases as each simulation was run for eight times the mean serial interval of a given disease. Consquently, the Ebola-like simulations experienced the largest outbreaks of up to 600 cases, whilst the influenza outbreaks barely reached 50 cases (SI Fig. \ref{sim_dist}). This wide variety in outbreak size resulted in forecasts of irregular quality. Figure \ref{good_bad_plot} exemplifies this with three representative forecasts for simulated Ebola-like outbreaks. While some forecasts were near the true incidence and with a relatively narrow range of projections, others had either a wide range of projections, a range that did more often not include the true daily incidence, or both.  
 
 \begin{figure}[h]
 <<good_bad_plot, cache = TRUE, echo = FALSE, fig.width = 8, fig.height = 3, fig.align = "center", message = FALSE, warning = FALSE>>=
@@ -598,6 +632,7 @@ good_proj <- project(sim_i[1:(delta * 6), ], R = sample_R(good_R, 1000), si = si
 good_plot <- plot(sim_i[1:(8*12), ]) %>% add_projections(good_proj, quantiles = c(0.05, 0.5))
 good_plot <- good_plot + theme(legend.position = "none") +
                          coord_cartesian(ylim = c(0, 65)) +
+                         xlab("Time (days)") +
                          annotate("text", label = "A", x = 5, y = 65)
 
 # Accurate but imprecise projection
@@ -610,6 +645,7 @@ wide_proj <- project(wide_i[1:(delta * 2), ], R = sample_R(wide_R, 1000), si = s
 wide_plot <- plot(wide_i[1:(8*12), ]) %>% add_projections(wide_proj[(2*12):(3*12), ], quantiles = c(0.05, 0.5))# (wide_proj[(4 * 12):((5 * 12) - 1), ])
 wide_plot <- wide_plot + theme(legend.position = "none") +
                          coord_cartesian(ylim = c(0, 65)) +
+                         xlab("Time (days)") +
                          annotate("text", label = "B", x = 5, y = 65)
 
 # An overall bad projection
@@ -622,19 +658,20 @@ bad_proj <- project(bad_i[1:(delta * 2), ], R = sample_R(bad_R, 1000), si = si,
 bad_plot <- plot(bad_i[1:(8*12), ]) %>% add_projections(bad_proj[(3*12):(4*12), ], quantiles = c(0.05, 0.5))
 bad_plot <- bad_plot + theme(legend.position = "none") +
                        coord_cartesian(ylim = c(0, 65)) +
+                       xlab("Time (days)") +
                        annotate("text", label = "C", x = 5, y = 65)
 
 # Combine plots into one plot
 multiplot(good_plot, wide_plot, bad_plot, cols = 3)
 @
-\caption{Examples of daily incidence forecasts for simulations of Ebola-like outbreaks. Daily incidence curves (black histogram) are shown with the forecasted daily incidence (shaded blue areas), along with the median projected incidence (purple line) and 95\% interval (pink line). Figure A shows a well-performing projection where the forecasted daily incidence along with its 95\% interval is near the true observed incidence. Figure B shows a projection where the median forecasted incidence is near the true observed values, but the spread of projections is wide. Figure C shows a projection where the median forecasted simulation is not near the true observed incidence and the spread of forecasts is wide.}
+\caption{Examples of daily incidence forecasts for simulations of Ebola-like outbreaks. Daily incidence curves (black histogram) are shown with the forecasted daily incidence (purple line: median, 95\% prediction interval: pink line and shaded areas). Panel A shows a well-performing projection where the forecasted daily incidence along with its 95\% interval is near the true observed incidence. Panel B shows a projection where the median forecasted incidence is near the true observed values, but the spread of projections is wide. Panel C shows a projection where the median forecasted simulation is not near the true observed incidence and the spread of forecasts is wide.}
 \label{good_bad_plot}
 \end{figure}
 
 \textcolor{red}{Should I put Fig. \ref{good_bad_plot} into the methods?}
 
 \begin{figure}[h]
-<<all_metric_plot, echo = FALSE, fig.width = 8, fig.height = 10>>=
+<<all_metric_plot, echo = FALSE, fig.width = 8, fig.height = 10, warning = FALSE>>=
 # Only want calibration windows 1, 2, and 4
 sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
 
@@ -642,9 +679,9 @@ sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 |
 sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
 
 # Residual
-residual_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(residual), std = sd(residual), q1 = quantile(residual, probs = 0.25), q3 = quantile(residual, probs = 0.75))
+residual_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(residual), std = sd(residual), q1 = quantile(residual, probs = 0.025), q2 = quantile(residual, probs = 0.25), q3 = quantile(residual, probs = 0.75), q4 = quantile(residual, probs = 0.975))
 
-residual_sub <- ggplot(residual_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
+residual_sub <- ggplot(residual_iqr, aes(cali_proj, y = med, ymin = q2, ymax = q3, color = cali_window_size)) +
                     geom_hline(yintercept = 0, linetype = "dashed") +
                     geom_pointrange(size = 0.5, shape = 16) +
                     facet_wrap(~disease, scales = "free") +
@@ -653,8 +690,18 @@ residual_sub <- ggplot(residual_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q
                           axis.text.x = element_text(angle = 45),
                           axis.title.x = element_blank())
 
+residual_sub2 <- ggplot(residual_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    # coord_cartesian(ylim = quantile(sub_table$residual, c(0, 0.97))) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Residual", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
 # MSE
-mse_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(mse), std = sd(mse), q1 = quantile(mse, probs = 0.25), q3 = quantile(mse, probs = 0.75))
+mse_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(mse), std = sd(mse), q1 = quantile(mse, probs = 0.025), q2 = quantile(mse, probs = 0.25), q3 = quantile(mse, probs = 0.75), q4 = quantile(mse, probs = 0.975))
 
 mse_sub <- ggplot(mse_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
                     # geom_hline(yintercept = 0, linetype = "dashed") +
@@ -666,8 +713,19 @@ mse_sub <- ggplot(mse_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color =
                           axis.title.x = element_blank(),
                           strip.text.x = element_blank())
 
+mse_sub2 <- ggplot(mse_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    # coord_cartesian(ylim = quantile(sub_table$residual, c(0, 0.97))) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "MSE", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank(),
+                          strip.text.x = element_blank())
+
 # Sharpness
-sharpness_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75))
+sharpness_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.025), q2 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75), q4 = quantile(sharpness, probs = 0.975))
 
 sharpness_sub <- ggplot(sharpness_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
                     # geom_hline(yintercept = 0, linetype = "dashed") +
@@ -680,8 +738,19 @@ sharpness_sub <- ggplot(sharpness_iqr, aes(cali_proj, y = med, ymin = q1, ymax =
                           axis.title.x = element_blank(),
                           strip.text.x = element_blank())
 
+sharpness_sub2 <- ggplot(sharpness_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    coord_cartesian(ylim = c(0, 1)) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Sharpness", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank(),
+                          strip.text.x = element_blank())
+
 # Bias
-bias_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(bias), std = sd(bias), q1 = quantile(bias, probs = 0.25), q3 = quantile(bias, probs = 0.75))
+bias_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(bias), std = sd(bias), q1 = quantile(bias, probs = 0.025), q2 = quantile(bias, probs = 0.25), q3 = quantile(bias, probs = 0.75), q4 = quantile(bias, probs = 0.975))
 
 bias_sub <- ggplot(bias_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
                     geom_hline(yintercept = 0, linetype = "dashed") +
@@ -693,18 +762,28 @@ bias_sub <- ggplot(bias_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color
                           axis.text.x = element_text(angle = 45),
                           strip.text.x = element_blank())
 
+bias_sub2 <- ggplot(bias_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    coord_cartesian(ylim = c(-1, 1)) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Bias", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          strip.text.x = element_blank())
+
 
 # Call plot
-multiplot(residual_sub, mse_sub, sharpness_sub, bias_sub)
+multiplot(residual_sub2, mse_sub2, sharpness_sub2, bias_sub2)
 @
-\caption{How the medians and interquartile ranges of the four prediction metrics - average residual, mean-square error, sharpness, and bias, for Ebola-like, influenza-like, and SARS-like outbreaks differ as the projection window's distance from the calibration window increases from 1 to 4 for calibration windows of size 1 (dark blue), 2 (blue), and 4 (light blue).}
+\caption{The medians and interquartile ranges of the four prediction metrics - average residual, mean-square error, sharpness, and bias, for Ebola-like, influenza-like, and SARS-like outbreaks for projection window's distance from the calibration window increases from 1 to 4 for calibration windows of size 1 (dark blue), 2 (blue), and 4 (light blue).}
 \label{all_metric_plot}
 \end{figure}
 \FloatBarrier
 
 Figure \ref{all_metric_plot} shows how the performance of the branching process model varies with different combinations of calibration window size and the distance between the calibration window size and projection window for the three simulated diseases. The full results for every calibration window size and projection window number can be found in section 2.3 of the Supplementary Information, though the general trend remains similar across calibration windows. Across all three simulated diseases, the average residual decreased and the MSE increased as the projection window moved further from the calibration window, implying overestimation of daily incidence. The Ebola-like outbreaks saw the greatest overestimations of daily incidence, while SARS forecasts tended to be closest to the true daily incidence. The extent of this overestimation reduced as the calibration window increased for the Ebola-like and influenza-like outbreaks, implying that having more days' worth of data improved the forecasted disease incidence estimates. This was not the case for SARS, which saw a slight increase in overestimation with increasing calibration window size, though the scale of the overestimation was smaller than that of influenza-like or Ebola-like outbreak.
 
-The sharpness of the forecasts for the simulated outbreaks suggests that sharpness was higher with fewer calibration windows and decreased as calibration window size increased or as the projection window moved further from the calibration window. Coincidentally, the number of cases observed in these early calibration windows are low and the projections for these calibration windows include the possibility of no cases occurring (Fig. \ref{cali_zero_plot}). As sharpness is measured by observing how far from the median projection a single trajectory is, the sharpness can be expected to be high for a forecast that considers the chances of observing no cases likely. As the projection window moves further from the calibration window, the interquartile range widens. \textcolor{red}{in Discussion say that this is because some projections then may start predicting an outbreak and go further from those that don't - giving big differences}. The drop in sharpness seen as calibration size increases is partly explained by the increasing number of projections that have rejected the possibility of no cases occurring in the projection window as more trajectories deviate from the median at some point during the course of the projection (Fig. \ref{cali_zero_plot}). \textcolor{red}{I could compare diseases an hypothesise about the link between Ebola simulation having larger outbreaks and being the first to exhibit projections where zero incidence is not the case anymore.}
+The sharpness of the forecasts for the simulated outbreaks suggests that sharpness was higher with fewer calibration windows and decreased as calibration window size increased or as the projection window moved further from the calibration window. Coincidentally, the number of cases observed in these early calibration windows are low and the projections for these calibration windows include the possibility of no cases occurring (SI Fig. \ref{cali_zero_plot}). As sharpness is measured by observing how far from the median projection a single trajectory is, the sharpness can be expected to be high for a forecast that considers the chances of observing no cases likely. As the projection window moves further from the calibration window, the interquartile range widens. \textcolor{red}{in Discussion say that this is because some projections then may start predicting an outbreak and go further from those that don't - giving big differences}. The drop in sharpness seen as calibration size increases is partly explained by the increasing number of projections that have rejected the possibility of no cases occurring in the projection window as more trajectories deviate from the median at some point during the course of the projection (Fig. \ref{cali_zero_plot}). \textcolor{red}{I could compare diseases an hypothesise about the link between Ebola simulation having larger outbreaks and being the first to exhibit projections where zero incidence is not the case anymore.}
 
 The forecasts' bias scores are mostly positive for Ebola-like and influenza-like outbreaks, though this reduces as calibration window size increases (Fig. \ref{all_metric_plot}). The bias also increases as the projection window moves further from the calibration window for the earlier calibration windows (REF SI). Towards the higher calibration windows, the daily incidence is increasingly often underestimated though the further into the future one forecasts, the more overprediction one sees.
 
@@ -951,7 +1030,7 @@ mse_summary <- summary(mse_lm_inter_ratio)
 sharpness_summary <- summary(sharpness_lm_inter)
 bias_summary <- summary(bias_lm_inter)
 
-lm_table <- array(NA, dim =c(28, 5))
+lm_table <- array(NA, dim =c(29, 5))
 
 # disease names
 lm_table[1, 1] <- "Residual"
@@ -961,29 +1040,29 @@ lm_table[23, 1] <- "Bias"
 
 # Coefficient names
 lm_table[c(1, 8, 16, 23), 2] <- "Intercept"
-lm_table[c(2, 9, 17, 24), 2] <- "Cal. size"# "Calibration window size"
+lm_table[c(2, 9, 17, 24), 2] <- "Cal. size \\textsuperscript{1}"# "Calibration window size"
 lm_table[c(3, 10, 18, 25), 2] <- "Disease" # Ebola, influenza, SARS
-lm_table[c(4, 11, 19, 26), 2] <- "No. cases" # "No. cases in calibration window"
-lm_table[c(5, 12, 20, 27), 2] <- "Proj. window" # "Projection window no."
-lm_table[c(6, 13, 21), 2] <- "Pred. group"# "Prediction group type"
-lm_table[c(14), 2] <- "Ratio" # "Ratio of calibration window size to projection window number"
-lm_table[c(7, 15, 22, 28), 2] <- "Interaction" # "Interaction between calibration and projection window"
+lm_table[c(4, 11, 19, 26), 2] <- "No. cases \\textsuperscript{2}" # "No. cases in calibration window"
+lm_table[c(5, 12, 20, 27), 2] <- "Proj. window \\textsuperscript{3}" # "Projection window no."
+lm_table[c(6, 13, 21), 2] <- "Pred. group \\textsuperscript{4}"# "Prediction group type"
+lm_table[c(14), 2] <- "Ratio \\textsuperscript{5}" # "Ratio of calibration window size to projection window number"
+lm_table[c(7, 15, 22, 28), 2] <- "Interaction \\textsuperscript{6}" # "Interaction between calibration and projection window"
 
 # Estimates and confidence intervals
 for (i in 1:7){
-lm_table[i, 3] <- paste(round(residual_summary$coefficients[i, 1], 2), "(", round(residual_summary$coefficients[i, 1] - 1.96 * residual_summary$coefficients[i, 2], 2), "-", round(residual_summary$coefficients[i, 1] + 1.96 * residual_summary$coefficients[i, 2], 2), ")", sep = "")
+lm_table[i, 3] <- paste(sprintf("%.2f", round(residual_summary$coefficients[i, 1], 2)), "(", sprintf("%.2f", round(residual_summary$coefficients[i, 1] - 1.96 * residual_summary$coefficients[i, 2], 2)), "-", sprintf("%.2f", round(residual_summary$coefficients[i, 1] + 1.96 * residual_summary$coefficients[i, 2], 2)), ")", sep = "")
 }
 
 for (i in 1:8){
-lm_table[(i + 7), 3] <- paste(round(mse_summary$coefficients[i, 1], 2), "(", round(mse_summary$coefficients[i, 1] - 1.96 * mse_summary$coefficients[i, 2], 2), "-", round(mse_summary$coefficients[i, 1] + 1.96 * mse_summary$coefficients[i, 2], 2), ")", sep = "")
+lm_table[(i + 7), 3] <- paste(sprintf("%.2f", round(mse_summary$coefficients[i, 1], 2)), "(", sprintf("%.2f", round(mse_summary$coefficients[i, 1] - 1.96 * mse_summary$coefficients[i, 2], 2)), "-", sprintf("%.2f", round(mse_summary$coefficients[i, 1] + 1.96 * mse_summary$coefficients[i, 2], 2)), ")", sep = "")
 }
 
 for (i in 1:7){
-lm_table[(i + 15), 3] <- paste(round(sharpness_summary$coefficients[i, 1], 2), "(", round(sharpness_summary$coefficients[i, 1] - 1.96 * sharpness_summary$coefficients[i, 2], 2), "-", round(sharpness_summary$coefficients[i, 1] + 1.96 * sharpness_summary$coefficients[i, 2], 2), ")", sep = "")
+lm_table[(i + 15), 3] <- paste(sprintf("%.2f", round(sharpness_summary$coefficients[i, 1], 2)), "(", sprintf("%.2f", round(sharpness_summary$coefficients[i, 1] - 1.96 * sharpness_summary$coefficients[i, 2], 2)), "-", sprintf("%.2f", round(sharpness_summary$coefficients[i, 1] + 1.96 * sharpness_summary$coefficients[i, 2], 2)), ")", sep = "")
 }
 
 for (i in 1:6){
-lm_table[(i + 22), 3] <- paste(round(bias_summary$coefficients[i, 1], 2), "(", round(bias_summary$coefficients[i, 1] - 1.96 * bias_summary$coefficients[i, 2], 2), "-", round(bias_summary$coefficients[i, 1] + 1.96 * bias_summary$coefficients[i, 2], 2), ")", sep = "")
+lm_table[(i + 22), 3] <- paste(sprintf("%.2f", round(bias_summary$coefficients[i, 1], 2)), "(", sprintf("%.2f", round(bias_summary$coefficients[i, 1] - 1.96 * bias_summary$coefficients[i, 2], 2)), "-", sprintf("%.2f", round(bias_summary$coefficients[i, 1] + 1.96 * bias_summary$coefficients[i, 2], 2)), ")", sep = "")
 }
 
 # p-value
@@ -998,12 +1077,29 @@ lm_table[8, 5] <- round(mse_summary$adj.r.squared, 2)
 lm_table[16, 5] <- round(sharpness_summary$adj.r.squared, 2)
 lm_table[23, 5] <- round(bias_summary$adj.r.squared, 2)
 
-colnames(lm_table) <- c("Metric", "Coefficient", "Estimate (95% CI)", "p-value", "Adjusted R-squared")
+colnames(lm_table) <- c("Metric", "Coefficient", "Estimate (95\\% CI)", "p-value", "Adjusted $R^{2}$")
+
+addtorow <- list(pos = list(29), command = NULL)
+
+# command <- paste0("\\hline\n\\endhead\n",
+# "\\hline\n",
+# "\\multicolumn{", dim(lm_table)[2] + 1, "}{l}",
+# "{\\footnotesize Footnote here}\n",
+# "\\endfoot\n",
+# "\\endlastfoot\n")
+# add.to.row$command <- command
+
+# addtorow$pos <- list(0, 0)
+# addtorow$command <- c("& \\multicolumn{3}{X}{footnote here} & \\multicolumn{3}{X}{$\\beta$}  & \\multicolumn{3}{X}{$\\gamma$} \\\\\n", "$R_{0}$ & simulation & PE & min & max & PE & min & max \\\\\n")
+addtorow$command <- c("\\multicolumn{5}{X}{\\textsuperscript{1} calibration window size \\newline \\textsuperscript{2} number of cases in calibration window \\newline \\textsuperscript{3} projection window \\newline \\textsuperscript{4} type of prediction \\newline \\textsuperscript{5} ratio of calibration window size to projection window number \\newline \\textsuperscript{6} additive interaction between calibration window size and projection window number} \\\\\n")
+
+#print(x.big, hline.after=c(-1), add.to.row = add.to.row, tabular.environment = "longtable")
 
 tab <- xtable(lm_table, caption = "The coefficients of the best-performing linear regression models for explaining variation in the average residuals, mean-square error, sharpness, and bias in the forecasts of simulated outbreaks of Ebola, Severe Acute Respiratory Syndrome (SARS), and influenza. CI: confidence interval, MSE: mean-square error. \\textcolor{red}{I need to get xtable to keep the correct number of decimal points}", label = "metric_lm_table")
 digits(tab) <- 2
-align(tab) <- "lXX{2cm}XXX"
-print(tab, hline.after=c(-1, 0, 7, 15, 22, 28), comment = FALSE, math.style.exponents = FALSE, include.rownames = FALSE, caption.placement = "bottom", type = "latex", sanitize.rownames.function = identity, tabular.environment = "tabularx", width = "\\textwidth", size = "\\small")
+# align(tab) <- "lXX{2cm}XXX"
+align(tab) = c("p{0.1\\textwidth}", "p{0.1\\textwidth}", "p{0.18\\textwidth}", "p{0.34\\textwidth}", "p{0.13\\textwidth}", "p{0.15\\textwidth}")
+print(tab, hline.after=c(-1, 0, 7, 15, 22, 28), comment = FALSE, math.style.exponents = FALSE, include.rownames = FALSE, caption.placement = "bottom", type = "latex", sanitize.rownames.function = identity, sanitize.colnames.function = identity, sanitize.text.function = identity, add.to.row = addtorow, tabular.environment = "tabularx", width = "\\textwidth", size = "\\small")
 @
 
 \textcolor{red}{When it comes to presenting p-values etc., I've presented the ones you get with summary(). Have I presented everything I need to present when it comes to the regression?}
@@ -1162,6 +1258,10 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 
 \textcolor{red}{I feel like I should be comparing my findings to other peoples' work and reference some papers in here but I have not done that yet.}
 
+\subsection{Conclusions}
+
+\textcolor{red}{Conclusions here}
+
 %%%%%%%%%%%%%%%%
 %% References %%
 %%%%%%%%%%%%%%%%
@@ -1174,18 +1274,47 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 \end{group}
 \end{singlespace}
 
+
+
+
+
+
+
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Supplementary information %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\appendix
+
+\etocdepthtag.toc{mtappendix}
+\etocsettagdepth{mtchapter}{none}
+\etocsettagdepth{mtappendix}{subsection}
+\etocsettagdepth{mtappendix}{subsubsection}
+
+\renewcommand\thefigure{\thesection.\arabic{figure}} 
 \setcounter{section}{1}
 \setcounter{subsection}{0}
+\setcounter{figure}{0}   
 \renewcommand{\thesection}{\arabic{section}}
 \newpage
 \section*{Supplementary Information}
-\addcontentsline{toc}{section}{Supplementary Information}
+% \addcontentsline{toc}{section}{Supplementary Information}
 
-\subsection{Methods: Branching process projections}
+%% Table of Contents
+\subsection*{Table of Contents}
+\vspace{-4em}
+\tableofcontents
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\setcounter{section}{1}
+\section{Methods}
+\subsection{Branching process projections}
 \textcolor{red}{I haven't finished this part of the methods yet.}
 In this supplementary information section I explain how the \textit{projections} package works as it is not documented elsewhere. 
 
@@ -1205,7 +1334,8 @@ Mention that the one used here is found in the \textit{projections}-package.
 
 \FloatBarrier
 \newpage
-\subsection{Simulated outbreaks: distribution of total outbreak size}
+\section{Simulated outbreaks}
+\subsection{Distribution of total outbreak size}
 
 \begin{figure}[h]
 <<sim_dist_plot, echo = FALSE, fig.width = 8, fig.height = 8>>=
@@ -1243,13 +1373,26 @@ multiplot(ebola_sim_dist, flu_sim_dist, sars_sim_dist)
 
 \FloatBarrier
 \newpage
-\subsection{Simulated outbreaks: full prediction metrics}
+\subsection{Full prediction metrics}
 
 
 \subsubsection{Average residual}
 \begin{figure}[h]
-<<whole_residual, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
-residual_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(residual), std = sd(residual), q1 = quantile(residual, probs = 0.25), q3 = quantile(residual, probs = 0.75))
+<<whole_residual, echo = FALSE, cache = FALSE, fig.width = 8, fig.height = 8, warning = FALSE>>=
+residual_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(residual), std = sd(residual), q1 = quantile(residual, probs = 0.025), q2 = quantile(residual, probs = 0.25), q3 = quantile(residual, probs = 0.75), q4 = quantile(residual, probs = 0.975))
+
+facet1_names <- c(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- c(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
 
 residual_massive <- ggplot(residual_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
@@ -1260,10 +1403,25 @@ residual_massive <- ggplot(residual_iqr, aes(cali_window_size, y = med, ymin = q
                     coord_cartesian(xlim = c(1, 7)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
                     theme(legend.position = "none") # +
+
+residual_massive2 <- ggplot(residual_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
+                    # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    facet_wrap(disease~proj_window_no, scales = "free", labeller = labeller(
+                      disease = facet1_names,
+                      proj_window_no = facet2_names
+                    )) +
+                    labs(y = "Residual", x = "Calibration window size") +
+                    coord_cartesian(xlim = c(1, 7)) +
+                    scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
+                    theme(legend.position = "none") # +
+
+
 # Print the figure
-residual_massive
+residual_massive2
 @
-\caption{The median average residual (circle) along with its interquatile range for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for simulated outbreaks of Ebola-like (red), influenza-like (green), and SARS-like (blue) diseases. The projections tend to approach the ideal average residual of 0 with increasing calibration window size. Additionally, the average residuals tend to be negative, implying overestimation of daily disease incidence.}
+\caption{The median average residual (circle) along with its interquatile range for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for simulated outbreaks of Ebola-like (red), influenza-like (green), and SARS-like (blue) diseases. The projections tend to approach the ideal average residual of 0 with increasing calibration window size. Additionally, the average residuals tend to be negative, implying overestimation of daily disease incidence. \textcolor{red}{make a labeller function to say "projection 1" etc. in strip}}
 \label{whole_residual}
 \end{figure}
 \FloatBarrier
@@ -1271,8 +1429,21 @@ residual_massive
 \newpage
 \subsubsection{MSE}
 \begin{figure}[h]
-<<whole_mse, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
-mse_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(mse), std = sd(mse), q1 = quantile(mse, probs = 0.25), q3 = quantile(mse, probs = 0.75))
+<<whole_mse, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8, warning = FALSE>>=
+mse_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(mse), std = sd(mse), q1 = quantile(mse, probs = 0.025), q2 = quantile(mse, probs = 0.25), q3 = quantile(mse, probs = 0.75), q4 = quantile(mse, probs = 0.975))
+
+facet1_names <- c(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- c(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
 
 mse_massive <- ggplot(mse_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
@@ -1283,8 +1454,22 @@ mse_massive <- ggplot(mse_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = 
                     coord_cartesian(xlim = c(1, 7)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
                     theme(legend.position = "none") # +
+
+mse_massive2 <- ggplot(mse_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
+                    # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    facet_wrap(disease~proj_window_no, scales = "free", labeller = labeller(
+                      disease = facet1_names,
+                      proj_window_no = facet2_names
+                    )) +
+                    labs(y = "MSE", x = "Calibration window size") +
+                    coord_cartesian(xlim = c(1, 7)) +
+                    scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
+                    theme(legend.position = "none") # +
+
 # Print the figure
-mse_massive
+mse_massive2
 @
 \caption{The mean-square error (MSE) (circle) along with its interquatile range for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for simulated outbreaks of Ebola-like (red), influenza-like (green), and SARS-like (blue) diseases.}
 \label{whole_mse}
@@ -1294,8 +1479,21 @@ mse_massive
 \newpage
 \subsubsection{Sharpness}
 \begin{figure}[h]
-<<whole_sharpness, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
-sharpness_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75))
+<<whole_sharpness, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8, warning = FALSE>>=
+sharpness_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.025), q2 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75), q4 = quantile(sharpness, probs = 0.975))
+
+facet1_names <- c(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- c(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
 
 sharpness_massive <- ggplot(sharpness_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
@@ -1306,8 +1504,22 @@ sharpness_massive <- ggplot(sharpness_iqr, aes(cali_window_size, y = med, ymin =
                     coord_cartesian(xlim = c(1, 7), ylim = c(0, 1)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
                     theme(legend.position = "none") # +
+
+sharpness_massive2 <- ggplot(sharpness_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
+                    # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    facet_wrap(disease~proj_window_no, scales = "free", labeller = labeller(
+                      disease = facet1_names,
+                      proj_window_no = facet2_names
+                    )) +
+                    labs(y = "Sharpness", x = "Calibration window size") +
+                    coord_cartesian(xlim = c(1, 7), ylim = c(0, 1)) +
+                    scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
+                    theme(legend.position = "none") # +
+
 # Print the figure
-sharpness_massive
+sharpness_massive2
 @
 \caption{The sharpness (circle) along with its interquatile range for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for simulated outbreaks of Ebola-like (red), influenza-like (green), and SARS-like (blue) diseases.}
 \label{whole_sharpness}
@@ -1344,8 +1556,31 @@ sharpness_type
 \newpage
 \begin{figure}[h]
 \subsubsection{Bias}
-<<whole_bias, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
-bias_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(bias), std = sd(bias), q1 = quantile(bias, probs = 0.25), q3 = quantile(bias, probs = 0.75))
+<<whole_bias, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8, warning = FALSE>>=
+bias_iqr <- total_table %>% group_by(disease, cali_window_size, proj_window_no) %>% summarise(med = median(bias), std = sd(bias), q1 = quantile(bias, probs = 0.025), q2 = quantile(bias, probs = 0.25), q3 = quantile(bias, probs = 0.75), q4 = quantile(bias, probs = 0.975))
+
+facet1_names <- c(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- c(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
+
+facet_labeller <- function(variable,value){
+  if (variable == "facet1") {
+    return(facet1_names[value])
+  } else if (variable == "facet2") {
+    return(facet2_names[value])
+  } else {
+    return(as.character(value))
+  }
+}
 
 bias_massive <- ggplot(bias_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
@@ -1356,8 +1591,22 @@ bias_massive <- ggplot(bias_iqr, aes(cali_window_size, y = med, ymin = q1, ymax 
                     coord_cartesian(xlim = c(1, 7), ylim = c(-1, 1)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
                     theme(legend.position = "none") # +
+
+bias_massive2 <- ggplot(bias_iqr, aes(cali_window_size, y = med, ymin = q1, ymax = q3, color = disease)) +
+                    # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    facet_wrap(disease~proj_window_no, scales = "free", labeller = labeller(
+                      disease = facet1_names,
+                      proj_window_no = facet2_names
+                    )) +
+                    labs(y = "Bias", x = "Calibration window size") +
+                    coord_cartesian(xlim = c(1, 7), ylim = c(-1, 1)) +
+                    scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
+                    theme(legend.position = "none") # +
+
 # Print the figure
-bias_massive
+bias_massive2
 @
 \caption{The bias (circle) along with its interquatile range for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for simulated outbreaks of Ebola-like (red), influenza-like (green), and SARS-like (blue) diseases.}
 \label{whole_bias}
@@ -1365,7 +1614,7 @@ bias_massive
 \FloatBarrier
 
 \newpage
-\subsection{Simulated outbreaks: distribution of metrics}
+\subsection{Distribution of metrics}
 \begin{figure}[h]
 <<dist_plot, echo = FALSE, fig.width = 8, fig.height = 9>>=
 new_mse_table <- total_table %>% mutate(mse_new = ifelse(mse > 30, 30, mse))
@@ -1404,7 +1653,7 @@ multiplot(mse_dist, residual_dist, sharp_dist, bias_dist)
 
 \FloatBarrier
 \newpage
-\subsection{Simulated outbreaks: zero-incidence}
+\subsection{Zero-incidence}
 \begin{figure}[h]
 <<pred_case_plot, echo = FALSE, fig.width = 7, fig.height = 3>>=
 # Convert days since case to SIs since case
@@ -1473,7 +1722,8 @@ cali_zero_plot
 
 \FloatBarrier
 \newpage
-\subsection{Empirical outbreaks: daily incidence of outbreaks}
+\section{Empirical outbreaks}
+\subsection{Daily incidence of outbreaks}
 <<real_projections, eval = TRUE, echo = FALSE, message = "hide", warning = FALSE>>=
 library(epitrix)
 library(distcrete)
@@ -1624,16 +1874,39 @@ multiplot(ebola_plot, influenza_plot, sars_plot, cols = 3)
 
 \FloatBarrier
 \newpage
-\subsection{Empirical outbreaks: full prediction metrics}
+\subsection{Full prediction metrics}
 
 \subsubsection{Average residual}
 \begin{figure}[h]
 <<whole_real_residual, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
+facet1_names <- list(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- list(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
+
+facet_labeller <- function(variable,value){
+  if (variable == "facet1") {
+    return(facet1_names[value])
+  } else if (variable == "facet2") {
+    return(facet2_names[value])
+  } else {
+    return(as.character(value))
+  }
+}
+
 residual_massive <- ggplot(real_total_table, aes(cali_window_size, y = residual, color = dataset)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
                     geom_hline(yintercept = 0, linetype = "dashed") +
                     geom_point(size = 1.5, shape = 16) +
-                    facet_wrap(dataset~proj_window_no, scales = "free") +
+                    facet_wrap(dataset~proj_window_no, scales = "free", labeller = facet_labeller) +
                     labs(y = "Residual", x = "Calibration window size") +
                     coord_cartesian(xlim = c(1, 7)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
@@ -1650,11 +1923,34 @@ residual_massive
 \subsubsection{MSE}
 \begin{figure}[h]
 <<whole_real_mse, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
+facet1_names <- list(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- list(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
+
+facet_labeller <- function(variable,value){
+  if (variable == "facet1") {
+    return(facet1_names[value])
+  } else if (variable == "facet2") {
+    return(facet2_names[value])
+  } else {
+    return(as.character(value))
+  }
+}
+
 mse_massive <- ggplot(real_total_table, aes(cali_window_size, y = mse, color = dataset)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
                     # geom_hline(yintercept = 0, linetype = "dashed") +
                     geom_point(size = 1.5, shape = 16) +
-                    facet_wrap(dataset~proj_window_no, scales = "free") +
+                    facet_wrap(dataset~proj_window_no, scales = "free", labeller = facet_labeller) +
                     labs(y = "MSE", x = "Calibration window size") +
                     coord_cartesian(xlim = c(1, 7)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
@@ -1671,11 +1967,34 @@ mse_massive
 \subsubsection{Sharpness}
 \begin{figure}[h]
 <<whole_real_sharpness, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
+facet1_names <- list(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- list(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
+
+facet_labeller <- function(variable,value){
+  if (variable == "facet1") {
+    return(facet1_names[value])
+  } else if (variable == "facet2") {
+    return(facet2_names[value])
+  } else {
+    return(as.character(value))
+  }
+}
+
 sharpness_massive <- ggplot(real_total_table, aes(cali_window_size, y = sharpness, color = dataset)) +
                     # geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1), fill = violin_fill, color = violin_fill) +
                     # geom_hline(yintercept = 0, linetype = "dashed") +
                     geom_point(size = 1.5, shape = 16) +
-                    facet_wrap(dataset~proj_window_no, scales = "free") +
+                    facet_wrap(dataset~proj_window_no, scales = "free", labeller = facet_labeller) +
                     labs(y = "Sharpness", x = "Calibration window size") +
                     coord_cartesian(xlim = c(1, 7), ylim = c(0, 1)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
@@ -1692,10 +2011,33 @@ sharpness_massive
 \subsubsection{Bias}
 \begin{figure}[h]
 <<whole_real_bias, echo = FALSE, cache = TRUE, fig.width = 8, fig.height = 8>>=
+facet1_names <- list(
+  "ebola" = "Ebola",
+  "influenza" = "Influenza",
+  "sars" = "SARS"
+)
+
+facet2_names <- list(
+  "1" = "Projection 1",
+  "2" = "Projection 2",
+  "3" = "Projection 3",
+  "4" = "Projection 4"
+)
+
+facet_labeller <- function(variable,value){
+  if (variable == "facet1") {
+    return(facet1_names[value])
+  } else if (variable == "facet2") {
+    return(facet2_names[value])
+  } else {
+    return(as.character(value))
+  }
+}
+
 bias_massive <- ggplot(real_total_table, aes(cali_window_size, y = bias, color = dataset)) +
                     geom_hline(yintercept = 0, linetype = "dashed") +
                     geom_point(size = 1.5, shape = 16) +
-                    facet_wrap(dataset~proj_window_no, scales = "free") +
+                    facet_wrap(dataset~proj_window_no, scales = "free", labeller = facet_labeller) +
                     labs(y = "Bias", x = "Calibration window size") +
                     coord_cartesian(xlim = c(1, 7), ylim = c(-1, 1)) +
                     scale_x_discrete(labels = c("1", "2", "3", "4", "5", "6", "7"), limits =  c("1", "2", "3", "4", "5", "6", "7")) +
@@ -1709,7 +2051,7 @@ bias_massive
 
 \FloatBarrier
 \newpage
-\subsection{Linear regression}
+\section{Linear regression}
 \subsubsection{Simulated outbreaks: model comparison}
 <<sim_metric_aic_table, echo = FALSE, results = "asis">>= 
 library(xtable)
@@ -1901,7 +2243,7 @@ no_cases_pred_type <- ggplot(total_table, aes(factor(pred_type),
 % Show that the model's performance can also be skewed by prediction type (only non-incidence, some non-incidence, and all projections with normal incidence).
 % Show results of regression for each metric.
 \FloatBarrier
-\subsubsection{Average residual}
+% \subsubsection{Average residual}
 \begin{figure}[h]
 <<residual_plot_total, echo = FALSE, fig.width = 8, fig.height = 3>>=
 library(ggplot2)
@@ -1979,7 +2321,7 @@ For the simulated Ebola outbreaks, the best quality linear regression model was 
 \textcolor{red}{I could run the models for more calibration windows etc. but currently Ebola for example is observed for up to 12 * 8 = 96 days (flu 24 days, SARS 72 days) - though I'm not sure how early outbreak it would be if one would extend further. I've also had a look at a 2-month observation period for each disease - see figures in the "Notes and outtakes"-section}
 \FloatBarrier
 
-\subsubsection{Mean-square error}
+% \subsubsection{Mean-square error}
 \FloatBarrier
 \begin{figure}[h]
 <<rmse_plot_total, echo = FALSE, fig.width = 8, fig.height = 3>>=
@@ -2032,7 +2374,7 @@ The best-fit linear regression model describing the relationship between RMSE an
 
 \FloatBarrier
 
-\subsubsection{Sharpness}
+% \subsubsection{Sharpness}
 
 \begin{figure}[h]
 <<sharpness_plot_total_out, echo = FALSE, fig.width = 7, fig.height = 3>>=
