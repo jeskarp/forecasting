@@ -370,11 +370,8 @@ All data simulation and analyses presented in this report were conducted on R, t
 
 Empirical daily incidence data for three diseases, Ebola, influenza, and SARS, were chosen to assess the performance of the branching process model \citep{Leone2014, Cori2018, Jombart2018a}. Table \ref{outbreak_table} shows the published $R_{0}$, and the mean and standard deviation (in days) of the serial interval for these empirical outbreaks.
 
-For each given disease, 80 simulated outbreaks based on the published $R_{0}$  serial interval (in days) for each empiricial disease outbreaks were run (Table \ref{outbreak_table}). Each simulation was run for eight times the rounded mean serial interval for a population size of 1 million. The length of the simulation was therefore 96 days for Ebola, 24 days for influenza, and 72 days for SARS. The simulations were conducted using the \textit{simOutbreak} function from the package \textit{outbreaker} \citep{Jombart2014}. For projection purposes, a section of this data would later be used to calibrate the predictive branching process model while other sections would be hidden to test the performance of said model.
+For each given disease, 80 simulated outbreaks were run based on the published $R_{0}$  serial interval (in days) for each empiricial disease outbreaks (Table \ref{outbreak_table}). Each simulation was run for eight times the rounded mean serial interval for a population size of 1 million. The length of the simulation was therefore 96 days for Ebola, 24 days for influenza, and 72 days for SARS. The simulations were conducted using the \textit{simOutbreak} function from the package \textit{outbreaker} \citep{Jombart2014}. For projection purposes, a section of this data would later be used to calibrate the predictive branching process model while other sections would be hidden to test the performance of said model.
 
-%\textcolor{red}{REMOVE OUTBREAK DATA SOURCE}
-% \textcolor{white}{\citep{Team2014, Fraser2011, Campbell2018}}
-% Source for ebola data: http://opendatasl.gov.sl/dataset/ebola-virus-data
 \vspace{2em}
 <<outbreak_table, echo = FALSE, results = "asis", message = FALSE>>=
 library(xtable)
@@ -388,23 +385,23 @@ outbreak_table[3, 1] <- "SARS"
 
 # Disease R0
 outbreak_table[1, 2] <- 2.02
-outbreak_table[2, 2] <- 2.7
-outbreak_table[3, 2] <- 1.77
+outbreak_table[3, 2] <- 2.7
+outbreak_table[2, 2] <- 1.77
 
 # Disease SI mean
 outbreak_table[1, 3] <- 11.6
-outbreak_table[2, 3] <- 8.7
-outbreak_table[3, 3] <- 2.6
+outbreak_table[3, 3] <- 8.7
+outbreak_table[2, 3] <- 2.6
 
 # Disease SI SD
 outbreak_table[1, 4] <- 5.6
-outbreak_table[2, 4] <- 3.6
-outbreak_table[3, 4] <- 1.5
+outbreak_table[3, 4] <- 3.6
+outbreak_table[2, 4] <- 1.5
 
 # Source
 outbreak_table[1, 5] <- "\\citep{Team2014}" # "WHO 2014, SL data"
-outbreak_table[2, 5] <- "\\citep{Fraser2011}" # "EpiEstim, Fraser (2011)"
-outbreak_table[3, 5] <- "\\citep{Campbell2018}" # "Campbell et al. (2018)"
+outbreak_table[3, 5] <- "\\citep{Fraser2011}" # "EpiEstim, Fraser (2011)"
+outbreak_table[2, 5] <- "\\citep{Campbell2018}" # "Campbell et al. (2018)"
 
 colnames(outbreak_table) <- c("Disease", "$R_{0}$", "SI mean (days)", "SI SD (days)", "Source")
 rownames(outbreak_table) <- c("Ebola", "Influenza", "SARS")
@@ -417,18 +414,40 @@ print(tab, hline.after=c(-1, 0, 3), comment = FALSE, math.style.exponents = FALS
 @
 \clearpage
 
-To forecast daily disease incidence, a branching process forecasting method based on Cori et al.'s method for estimating $R$ was used \citep{Cori2013, Jombart2018}. The full details on how the forecasting branching process model evaluated in this study works can be found in Supplementary Information section 1.1. The information required for forecasting are data on observed daily incidence and a Gamma-distributed serial interval for the disease in question.
+% The full details on how the forecasting branching process model evaluated in this study works can be found in Supplementary Information section 1.1. The information required for forecasting are data on observed daily incidence and a discrete Gamma-distributed serial interval for the disease in question.
 
 % The future incidence for each real and simulated outbreak was forecasted for a given number of time windows by first estimating the reproduction number ($R$) for the outbreak so far using the \textit{get\_R} function in the \textit{earlyR}-package (Fig. \ref{projection_ex})\citep{Jombart2017}. Future dates' incidence could then be projected based on the likelihood distribution of this $R$ using the \textit{project} function of the \textit{projections}-package \citep{Jombart2018}.
 
-\textcolor{red}{more in-depth explanation} 
-Before forecasting daily incidence, the force of infection for the observed time window was calculated. This was then used to calculate the likelihoods of varying values of the effective reproduction number, $R$. This $R$ likelihood distribution was then sampled from to obtain plausible values of $R$ used for projection purposes. This in turn is then used to predict force of infection and thus the number of new cases.
+\subsection{Forecasting incidence with a branching process model}
 
-Forecasts for the daily incidence of each empirical and simulated outbreak were obtained as follows. First a distribution of likely values of $R$ were obtained based on the observed incidence in the calibration window and a discretised serial interval \textcolor{red}{get\_R}. This distribution is sampled from in the projection process to obtain likely values of $R$ for the first forecast day \textcolor{red}{sample\_R}. For the following forecast days, the projected daily incidence of the previous forecast days is taken into account when obtaining a forecast. $R$ is resampled for each day. Each projection is composed of 10,000 individual projection trajectories, from which the projection median and projection intervals are calculated. The full details on how the branching process model is used for forecasting can be found in the Supplementary Information section 1.1.
+To forecast daily disease incidence, a branching process forecasting method based on Cori et al.'s method for estimating $R$ was used \citep{Cori2013, Jombart2018}. Before forecasting, the observed daily incidence (cases per day) and known estimates of the serial interval distribution were used to obtain a maximum likelihood estimate for the effective reproduction number, $R$. Here it is assumed that the serial interval follows a discrete Gamma distribution.
 
-A single time window was defined as one mean serial interval, in days. A single projection window was the size of this time window, while calibration windows were multiples of the time window, with all calibration windows starting from day 0. The differing calibration window lengths are due to the oubreak's force of infection and thus $R$ for a given time window being affected by the cases from previous time windows. The incidence data was hidden for dates that were not within the calibration window.
+The model used by this $R$ inference method describes daily incidence $x_{t}$ as:
+\begin{equation}
+x_{t} \sim \mathcal{P}(\lambda_{t})
+\end{equation}
+where the total force of infection for a given day, $\lambda_{t}$, determines the Poisson process $P()$ \citep{Cori2013, Jombart2017}.
 
-The calibration windows and projection windows were combined so that the outbreak was either projected for maximum four time windows, or so that the sum of time windows (calibration or projection) was eight time windows. This would mean for instance that a calibration window the size of one time window for an outbreak would be used to predict four time windows ahead, while a calibration window consisting of seven time windows would only be used to predict one time window ahead. This limitation in the total number of time windows used was done in an attempt to keep the focus on the performance of the branching process model during early outbreak analysis and avoid the simulated outbreaks reaching a point where the outbreak has burned through the susceptibles.  
+The force of infection for a day $t$ is calculated as the sum of individual forces of infection for that day:
+\begin{equation}
+\lambda_{t} = R \times \sum_{k = 1}^{t}x_{k}w(t - k)
+\end{equation}
+Here $w()$ is the discrete serial interval distribution (probability mass function) for day $k$ and $x$ is the incidence on a given day \citep{Jombart2017}}.
+
+The likelihood of observing incidence $x$ given the value of $R$ in turn incorporates the Poisson probability mass function $F_{\mathcal{P}}$ and is expressed as:
+\begin{equation}
+\mathcal{L}(x) = p(x|R) = \prod_{t = 1}^{T}F_{\mathcal{P}}(x_{t}, \lambda_{t})
+\end{equation}
+
+This can then be used to obtain a maximum-likelihood estimation for $R$ and the range of $R$ likelihoods can be sampled from to obtain plausible values of $R$. This $R$ inference method is implemented in the $earlyR$ package \citep{Jombart2017}. 
+
+The combination of observed daily incidence, serial interval distribution, and the previously calculated sample of plausible values of $R$ can then be used to forecast daily incidence using a branching process. As for the $R$ estimation, the forecasted daily incidence follows a Poisson process, determined by the daily infectiousness at time $t$, $\lambda_{t}$ (Eq. 1). $\lambda_{t}$ can also be calculated in the same manner as the $\lambda_{t}$ for a window of observed incidence (Eq. 2). As $R$ remains constant throughout the projection, it is drawn only once from the sample of plausible values of $R$ \citep{Jombart2018}. For the following projection days, the daily incidence of the previous days of the forecast are taken into account when re-calculating the force of infection \citep{Jombart2018}. In R, this projection method can be implemented with the $project$-function of the $projections$ package \citep{Jombart2018}.
+
+% This function simulates future incidence based on past incidence data, a selection of plausible reproduction numbers (R), and the distribution of the serial interval (time from primary onset to secondary onset).
+
+The forecasts were run for different numbers of days depending on disease. A single time window was defined as one rounded mean serial interval, in days. The mean serial interval was chosen rather than a time window of constant size for all diseases to make the analysis of the forecasts' performance more comparable across diseases with differing serial intervals. This means that a single time window for Ebola and Ebola-like simulations had a time window of 12 days, influenza 3 days, and SARS 9 days. Each single projection window within a full forecast was the size of a single time window, while calibration windows were multiples of the time window, with all calibration windows starting from the very beginning of the outbreak (Fig. \ref{projection_ex}). The differing calibration window lengths are due to the outbreak's force of infection for a given time window being affected by the cases from previous time windows. Incidence data was hidden for dates occurring after the calibration window.
+
+The maximum total length of the forecast was 4 time windows, while the calibration window ranged in size from 1 time window to 7 time windows. The forecast length and calibration window sizes were combined so that for a calibration window size of 1 to 4, the forecast length was 4 time windows. For calibration window sizes of 5, 6, and 7 time windows, the forecast lengths were 3, 2, and 1 time windows, respectively. This limitation in the total number of time windows used for calibration and forecasting to a maximum of 8 was done in an attempt to keep the focus on the performance of the branching process model during early outbreak analysis and avoid the simulated outbreaks reaching a point where the outbreak has burned through the susceptibles.  
 
 \begin{figure}[h]
 <<branching_process_ex, echo = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.align = "center">>=
@@ -525,10 +544,10 @@ projection_plot
 \end{figure}
 
 \FloatBarrier
-\newpage
+\clearpage
 \subsection{Performance metrics and their analysis}
 
-The performance of different calibration windows with varying projection windows was quantified by observing the average residual, mean-square relative error (MSE), sharpness, and bias of the projections for each projection window of each simulated or real outbreak.
+The performance of different calibration windows with varying projection windows was quantified by observing the average residual, mean-square relative error (MSE), sharpness, and bias of the projections for each projection window of each simulated or real outbreak. Of these metrics, the average residual and MSE are more well-established, while the metrics sharpness and bias are adapted from Funk et al \citep{Funk2018}.  
 
 The average residual, measuring whether the model is over- or under-predicting values while taking into account the magnitude of the difference, was calculated for a given projection day $t$ as the mean of differences between the true incidence $x$ and projected incidence $p$ for all $I$ stochastic trajectories:
 \begin{equation}
@@ -536,7 +555,7 @@ The average residual, measuring whether the model is over- or under-predicting v
 \end{equation}
 Here a negative residual implies that the model is overpredicting the daily incidence, and a positive residual implies that the model is underpredicting the daily incidence. A perfect prediction would thus have a residual of 0.
 
-The MSE, the sample squared standard deviation of the differences between predicted and observed values, was calculated. Much like the mean residual, this measures whether the model is over- or under-predicting values, but it is more successful at emphasising outliers as the errors are squared \textcolor{red}{REFERENCE}. 
+The MSE, the sample squared standard deviation of the differences between predicted and observed values, was calculated. Much like the mean residual, this measures whether the model is over- or under-predicting values, but it is more successful at emphasising outliers as the difference between the true and projected incidence is squared \citep{Chai2014}. 
 
 For a given prediction day the MSE is calculated as:
 \begin{equation}
@@ -558,9 +577,6 @@ where a Heaviside step function with half-maximum convention was applied to the 
 
 To provide a single score for each projection window, the mean of the daily values for average residual, MSE, sharpness, and bias were calculated. The performance of the predictions was analysed in the same manner for both the simulated and empirical outbreaks. 
 
-% Reliability, the predictive model's ability to assess uncertainty, was assessed by identifying how likely it was that the true incidence for a given day would have come from the distribution of predictions for that given timepoint. This was calculated by using Funk et al.'s approach where the uniformity of predictions' cumulative distribution functions is tested with an Anderson-Darling test, with a modification allowing for the discrete Poisson distribution to be perceived as continuous. EXPLAIN HOW I DID THIS.
-%The RMSE and bias for the branching process model's prediction windows was compared against a null model where the predicted incidence for the projection windows was the mean of the incidence of the calibration window.while for reliability, the p-value for the Anderson-Darling test on the data for the given prediction window was calculated.
-
 In order to determine which aspects of the outbreaks affect the accuracy of the branching process model's predictions as measured by the metrics, a linear regression analysis was undertaken for each metric of the simulated outbreaks. The explanatory variables taken into consideration were disease ($d$), the size of the calibration window ($c$), the number of cases within said calibration window ($n$), the distance in serial intervals between the end of the calibration window and the end of the projection window ($p$), and whether the projection window contained projections that predicted only zero incidence, some zero incidence, or no zero incidence ($z$). Thus, the equation for the linear regression consisting of all these explanatory variables for a metric $y$ would be:
 \begin{equation}
   y = a + b_{0}d + b_{1}c + b_{2}n + b_{3}p + b_{4}z + \epsilon
@@ -569,8 +585,76 @@ where $b$ represents the regression slope for each variable, $\epsilon$ is the e
 
 The most parsimonius model was selected stepwise out of a starting model consisting of all the above explanatory variables by using Akaike Information Criterion (AIC) by implementing the \textit{stepAIC} function in the R package \textit{MASS} \citep{Venables2002}. This model was then treated as the "basic" model. After this, the additional benefit to the quality of the model gained by adding either an additive interaction between calibration window size and distance of projection window, the ratio of calibration window size to prediction window number, or both interaction and ratio to the basic model was assessed by comparing the AICs of each model. The correlation between the performance metrics was also explored through observing the correlation coefficients for every combination of metric pairs.
 
+% Outtakes
+
 % \textcolor{red}{Here Thibaut had left a note in my thesis - "These are other response variables". I find this a bit cryptic as we didn't discuss this in our meeting and I only saw this later}.
 %\textcolor{red}{Let me know if you think that I should have just put everything (interactions and all) into the "basic" model and then just found the most parsimonius model using stepwise AIC and not have bothered with comparing the "basic" model with additions.}
+
+%\textcolor{red}{REMOVE OUTBREAK DATA SOURCE}
+% \textcolor{white}{\citep{Team2014, Fraser2011, Campbell2018}}
+% Source for ebola data: http://opendatasl.gov.sl/dataset/ebola-virus-data
+
+% In order to obtain a forecast of daily incidence, first the force of infection for the observed time window was calculated, which was then used to calculate the likelihoods of varying values of the effective reproduction number, $R$. This $R$ likelihood distribution was then sampled from to obtain plausible values of $R$ used for projection purposes. This in turn is then used to predict force of infection and thus the number of new cases.
+
+% \subsubsection{Inferring the force of infection and R}
+
+%  order to obtain a forecast of daily incidence, first the force of infection for the observed time window is calculated, which was then used to calculate the likelihoods of varying values of the effective reproduction number, $R$. This $R$ likelihood distribution was then sampled from to obtain plausible values of $R$ used for projection purposes. This in turn is then used to predict force of infection and thus the number of new cases.
+
+% \textcolor{red}{sample\_R}
+
+% Though there was no data on who infected whom, this could be inferred by calculating for each pair of cases the relative likelihood that one was infected by the other \citep{Wallinga2004}. Thus for a given case $j$, the effective reproduction number can be estimated as the sum of the likelihoods $p$ that given cases $i$ were infected by case $j$:
+% \begin{equation}
+% R_{j} = \sum_{i}{p_{ij}}
+% \end{equation}
+% 
+% \textcolor{red}{get\_R}
+% 
+% Estimating the case reproduction numbers for cases $j$ in the calibration window produces a distribution of values of $R$ \citep{Cori2013}. This estimation of $R$ is then utilised to estimate the incidence for the day directly after the end of the calibration window. 
+% The log-likelihood for a range of $R$s based on the computed force of infection can then be calculated:
+% sum(stats::dpois(x[-1], lambda = R * x_lambdas, log = TRUE))
+% x is daily incidence
+% x_lambdas comes from overall_infectivity
+% \textcolor{red}{What I want to say: sum(stats::dpois(x[-1], lambda = R * x\_lambdas, log = TRUE))}
+% \begin{equation}
+% p(R) = \sum_{t = 1} log(Pois(x_{t} | R \times \lambda_{t}))
+% \end{equation}
+% \textcolor{red}{make sure I converted code into equation correctly}
+
+% Explain how branching process models work. Take the calibration window, estimate the likelihood distribution of the reproduction number of the observed incidence.
+% \textcolor{red}{Mention that the one used here is found in the \textit{projections}-package.}
+
+%\textcolor{red}{more in-depth explanation} 
+
+% Before forecasting daily incidence, a maximum likelihood estimate of the effective reproduction number, $R$, was calculated by considering how likely the observed incidence would be given a value of $R$. To do so, it was assumed that the daily incidence follows a Poisson process  This process of estimating a likelihood was repeated for many $R$ values, the range of which are sampled to obtain plausible values of $R$ for the forecasts. 
+%where the force of infection, $\lambda_{t}$, for the observed time window was calculated. $\lambda_{t}$ was then used to calculate a maximum likelihood estimate and a likelihood distribution for the effective reproduction number, $R$, for the window of observed incidence \citep{Jombart2017}. This distribution was then sampled from to obtain plausible values of $R$ used for projection purposes \citep{Jombart2017}. This in turn is then used to predict force of infection and thus the number of new cases.
+
+% Forecasts for the daily incidence of each empirical and simulated outbreak were obtained as follows. First a distribution of likely values of $R$ were obtained based on the observed incidence in the calibration window and a discretised serial interval \textcolor{red}{get\_R}. This distribution is sampled from in the projection process to obtain likely values of $R$ for the first forecast day \textcolor{red}{sample\_R}. For the following forecast days, the projected daily incidence of the previous forecast days is taken into account when obtaining a forecast. $R$ is resampled for each day. Each projection is composed of 10,000 individual projection trajectories, from which the projection median and projection intervals are calculated. The full details on how the branching process model is used for forecasting can be found in the Supplementary Information section 1.1.
+
+% The force of infection on a given day is the sum of individual forces of infection. The invididual force of infection is computed as the R0 multiplied by the pmf of the serial interval for the corresponding day:
+% lambda_{i,t} = R0 w(t - t_i)
+% where 'w' is the PMF of the serial interval and 't_i' is the date of onset of case 'i'.
+% R values are constant within simulations, so drawn once for all simulations (fix_within = TRUE)
+
+% projections
+% \begin{equation}
+% \lambda_{t} = \sum_{k = 1}^{t-1}x_{k}w(t-k)
+% \end{equation}
+
+% where the product of the incidence at time $s$ and the discretised serial interval distribution (probability mass function, $w$) for the time period between time $t$ and $s$ is summed for all days from day $s$ until day $t - 1$.
+% This force of infection for forecasting day $t$ in conjunction with an $R$ sampled from the likelihood distribution is then used to simulate a daily incidence, $i$ at a future date $t$ with a Poisson process.
+
+% \textcolor{red}{what I want to say: stats::rpois(n\_sim, R * lambda)}
+% \begin{equation}
+% i_{t} \sim \mathcal{P}(\lambda{t})
+% \end{equation}
+
+% \subsubsection{Forecasting incidence}
+% \textcolor{red}{project}
+
+% To forecast disease incidence using a branching process model, such as the one used in the \textit{projections}-package, the following steps are taken.
+
+% Reliability, the predictive model's ability to assess uncertainty, was assessed by identifying how likely it was that the true incidence for a given day would have come from the distribution of predictions for that given timepoint. This was calculated by using Funk et al.'s approach where the uniformity of predictions' cumulative distribution functions is tested with an Anderson-Darling test, with a modification allowing for the discrete Poisson distribution to be perceived as continuous. EXPLAIN HOW I DID THIS.
+%The RMSE and bias for the branching process model's prediction windows was compared against a null model where the predicted incidence for the projection windows was the mean of the incidence of the calibration window.while for reliability, the p-value for the Anderson-Darling test on the data for the given prediction window was calculated.
 
 %%%%%%%%%%%%%
 %% Results %%
@@ -795,11 +879,11 @@ multiplot(residual_sub2, mse_sub2, sharpness_sub2, bias_sub2)
 \end{figure}
 \FloatBarrier
 
-Figure \ref{all_metric_plot} shows how the performance of the branching process model varies with different combinations of calibration window size and the distance between the calibration window size and projection window for the three simulated diseases. The full results for every combination of calibration window size and projection window number can be found in section 2.2 of the Supplementary Information, though the general trend remains similar across calibration windows. Across all three simulated diseases, the average residual decreased and the MSE increased as the projection window moved further from the calibration window, implying overestimation of daily incidence. The Ebola-like outbreaks saw the greatest overestimations of daily incidence, while forecasts for the SARS-like outbreaks tended to be closest to the true daily incidence. The extent of this overestimation reduced as the calibration window increased for the Ebola-like and influenza-like outbreaks, implying that having more days' worth of data improved the accuracy of forecasted disease incidence estimates. This was not the case for SARS, which saw a slight increase in overestimation with increasing calibration window size, though the scale of the overestimation was smaller than that of influenza-like or Ebola-like outbreak.
+Figure \ref{all_metric_plot} shows how the performance of the branching process model varies with different combinations of calibration window size and the distance between the calibration window size and projection window for the three simulated diseases. The full results for every combination of calibration window size and projection window number can be found in Supplementary Information section 1.2, though the general trend remains similar across calibration windows. Across all three simulated diseases, the average residual decreased and the MSE increased as the projection window moved further from the calibration window, implying overestimation of daily incidence. The Ebola-like outbreaks saw the greatest overestimations of daily incidence, while forecasts for the SARS-like outbreaks tended to be closest to the true daily incidence. The extent of this overestimation reduced as the calibration window increased for the Ebola-like and influenza-like outbreaks, implying that having more days' worth of data improved the accuracy of forecasted disease incidence estimates. This was not the case for SARS, which saw a slight increase in overestimation with increasing calibration window size, though the scale of the overestimation was smaller than that of influenza-like or Ebola-like outbreaks.
 
 The median sharpness of the forecasts for the simulated outbreaks was higher with fewer calibration windows and decreased as calibration window size increased or as the projection window moved further from the calibration window. The number of cases observed in these early calibration windows are low and the projections for these calibration windows include the possibility of no cases occurring (SI Fig. \ref{cali_zero_plot}). 
 
-As sharpness is measured by observing how far from the median predicted incidence a single trajectory is, a forecast's sharpness can be expected to be high for a forecast for which many of the 10,000 individual trajectories that it consists of forecast no new cases. This is because the median predicted incidence of these 10,000 trajectories will be zero and thus many trajectories will be exactly on the median. This in turn has an effect on the distribution of the values that sharpness takes, where forecasts that include the possibility of no new cases either have a high sharpness or sharpness that is lower than that of forecasts that do not predict extinction (SI Fig. \ref{sharpness_type_plot}). The drop in sharpness seen as calibration size increases is partly explained by the increasing number of projections that have rejected the possibility of no cases occurring in the projection window as more trajectories deviate from the median at some point during the course of the projection (SI Fig. \ref{cali_zero_plot}). 
+As sharpness is measured by observing how far from the median predicted incidence a single stochastic trajectory is, a forecast's sharpness can be expected to be high for a forecast where many of its individual stochastic trajectories forecast no new cases. This is because the median predicted incidence of these trajectories will be zero and thus many trajectories will be exactly on the median. This in turn has an effect on the distribution of the values that sharpness takes, where forecasts that include the possibility of no new cases either have a high sharpness or sharpness that is lower than that of forecasts that do not predict extinction (SI Fig. \ref{sharpness_type_plot}). The drop in sharpness seen as calibration size increases is partly explained by the increasing number of projections that have rejected the possibility of no cases occurring in the projection window as more trajectories deviate from the median at some point during the course of the projection (SI Fig. \ref{cali_zero_plot}). 
 
 % \textcolor{red}{say something about widening 95\% quantiles?} 
 % \textcolor{red}{in Discussion say that this is because some projections then may start predicting an outbreak and go further from those that don't - giving big differences}. 
@@ -1283,9 +1367,11 @@ influenza_2 <- (sum(influenza_table$pred_type == 2) / nrow(influenza_table)) * 1
 @
 \FloatBarrier
 
-The most parsimonious linear regression models with an addition of interaction terms and where this lowered the AIC is presented for each of the four forecast performance metricsin Table \ref{metric_lm_table}. A comparison of the AICs of all the linear models can be found in Supplementary Information Table \ref{sim_metric_aic_table}. For the average residual and sharpness, the best model was one which contained all the explanatory variables and an additive interaction term between calibration window size and projection window number. For the MSE, the best model additionally included the ratio of calibration window size to projection window number. For bias, the best model included all explanatory variables excluding the prediction type of the forecast (whether or not the forecast includes the possibility of no incidence) and included the interaction term. Out of the metrics, the change in sharpness due to the explanatory variables is best explained by the linear regression model with an adjusted R-squared of 0.47, while the MSE was least explained with an adjuste R-squared of 0.06. As the interaction term between calibration window size and projection window number is statistically significant, it suggests that the effect of the projection window number is different for each of the calibration window sizes.
+Table \ref{metric_lm_table} presents the most parsimonious linear regression models with an addition of interaction terms for each of the four performance metrics. A comparison of the AICs of all the linear models can be found in Supplementary Information Table \ref{sim_metric_aic_table}. For the average residual, sharpness, and bias, the best model was one which contained all the explanatory variables and an additive interaction term between calibration window size and projection window number. For the MSE, the best model additionally included the ratio of calibration window size to projection window number. Out of the metrics, the change in sharpness due to the explanatory variables is best explained by the linear regression model with an adjusted R-squared of 0.49, while the MSE was least explained with an adjusted R-squared of 0.05. 
 
-The correlations between metrics found that the correlation coefficient of the MSE and average residual was \Sexpr{round(res_mse_cor$estimate, 2)}, which means that MSE tends to decrease with increasing average residual. Bias also decreases with increasing average residual with a correlation coefficient of \Sexpr{round(res_bia_cor$estimate, 2)}. Sharpness, on the other hand, increases as the average residual increases with a correlation coefficient of \Sexpr{round(res_sha_cor$estimate, 2)} and decreases with increasing MSE (\Sexpr{round(mse_sha_cor$estimate, 2)}). Bias is positively correlated with MSE with a correlation coefficient of \Sexpr{round(mse_bia_cor$estimate, 2)}, while bias is negatively correlated with sharpness with a correlation coefficient of \Sexpr{round(sha_bia_cor$estimate, 2)}.
+% As the interaction term between calibration window size and projection window number is statistically significant, it suggests that the effect of the projection window number is different for each of the calibration window sizes.
+
+The correlation coefficient of the MSE and average residual was \Sexpr{round(res_mse_cor$estimate, 2)}, which means that MSE tends to decrease with increasing average residual. Bias also decreases with increasing average residual with a correlation coefficient of \Sexpr{round(res_bia_cor$estimate, 2)}. Sharpness, on the other hand, increases as the average residual increases with a correlation coefficient of \Sexpr{round(res_sha_cor$estimate, 2)} and decreases with increasing MSE (\Sexpr{round(mse_sha_cor$estimate, 2)}). Bias is positively correlated with MSE with a correlation coefficient of \Sexpr{round(mse_bia_cor$estimate, 2)}, while bias is negatively correlated with sharpness with a correlation coefficient of \Sexpr{round(sha_bia_cor$estimate, 2)}.
 
 % \textcolor{red}{I'm feeling a bit insecure about how I should talk about the linear regression table. Any advice is appreciated. I was thinking that it's overkill to go through each explanatory and metric separately in a case like this, but when I've done regression analysis before for more traditional epidemiological coursework, we discussed all variables in painstaking detail - this isn't very interesting way of doing things for a paper-style report though.}
 
@@ -1482,81 +1568,81 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 
 \newpage
 \setcounter{section}{0}
-\section{Expanded Methods}
-\subsection{Forecasting incidence with a branching process model}
-
-% In order to obtain a forecast of daily incidence, first the force of infection for the observed time window was calculated, which was then used to calculate the likelihoods of varying values of the effective reproduction number, $R$. This $R$ likelihood distribution was then sampled from to obtain plausible values of $R$ used for projection purposes. This in turn is then used to predict force of infection and thus the number of new cases.
-
-\subsubsection{Inferring the force of infection and R}
-First the observed daily incidence (cases per day) and known estimates of the serial interval distribution were used to obtain a likelihood distribution for the effective reproduction number, $R$. Here it is assumed that the serial interval follows a discrete Gamma distribution. 
-
-Daily incidence $x_{t}$ can be described as:
-\begin{equation}
-x_{t} \sim \mathcal{P}(\lambda_{t})
-\end{equation}
-where $P(\lambda_{t})$ is the Poisson process determined by the total force of infection for a given day, $\lambda_{t}$ \citep{Cori2013, Jombart2017}.
-
-The force of infection for a day $t$ is then calculated as the sum of individual forces of infection for that day:
-\begin{equation}
-\lambda_{t} = R \times \sum_{k = 1}^{t}x_{k}w(t - k)
-\end{equation}
-Here $w()$ is the discrete serial interval distribution (probability mass function) for day $k$ and $x$ is the incidence on a given day.
-
-The likelihood of observing incidence $x$ given the value of $R$ in turn incorporates the Poisson probability mass function $F_{\mathcal{P}}$ and is expressed as:
-\begin{equation}
-\mathcal{L}(x) = p(x|R) = \prod_{t = 1}^{T}F_{\mathcal{P}}(x_{t}, \lambda_{t})
-\end{equation}
-
-This can then be used to obtain a maximum-likelihood estimation of $R$ and the created likelihood distribution of $R$ can be sampled from to obtain plausible values of $R$ for forecasting incidence. This method of inferring $R$ is implemented in the $earlyR$ R package \citep{Jombart2017}. 
-
-% \textcolor{red}{sample\_R}
-
-% Though there was no data on who infected whom, this could be inferred by calculating for each pair of cases the relative likelihood that one was infected by the other \citep{Wallinga2004}. Thus for a given case $j$, the effective reproduction number can be estimated as the sum of the likelihoods $p$ that given cases $i$ were infected by case $j$:
+% \section{Expanded Methods}
+% \subsection{Forecasting incidence with a branching process model}
+% 
+% % In order to obtain a forecast of daily incidence, first the force of infection for the observed time window was calculated, which was then used to calculate the likelihoods of varying values of the effective reproduction number, $R$. This $R$ likelihood distribution was then sampled from to obtain plausible values of $R$ used for projection purposes. This in turn is then used to predict force of infection and thus the number of new cases.
+% 
+% \subsubsection{Inferring the force of infection and R}
+% First the observed daily incidence (cases per day) and known estimates of the serial interval distribution were used to obtain a likelihood distribution for the effective reproduction number, $R$. Here it is assumed that the serial interval follows a discrete Gamma distribution. 
+% 
+% Daily incidence $x_{t}$ can be described as:
 % \begin{equation}
-% R_{j} = \sum_{i}{p_{ij}}
+% x_{t} \sim \mathcal{P}(\lambda_{t})
+% \end{equation}
+% where $P(\lambda_{t})$ is the Poisson process determined by the total force of infection for a given day, $\lambda_{t}$ \citep{Cori2013, Jombart2017}.
+% 
+% The force of infection for a day $t$ is then calculated as the sum of individual forces of infection for that day:
+% \begin{equation}
+% \lambda_{t} = R \times \sum_{k = 1}^{t}x_{k}w(t - k)
+% \end{equation}
+% Here $w()$ is the discrete serial interval distribution (probability mass function) for day $k$ and $x$ is the incidence on a given day.
+% 
+% The likelihood of observing incidence $x$ given the value of $R$ in turn incorporates the Poisson probability mass function $F_{\mathcal{P}}$ and is expressed as:
+% \begin{equation}
+% \mathcal{L}(x) = p(x|R) = \prod_{t = 1}^{T}F_{\mathcal{P}}(x_{t}, \lambda_{t})
 % \end{equation}
 % 
-% \textcolor{red}{get\_R}
+% This can then be used to obtain a maximum-likelihood estimation of $R$ and the created likelihood distribution of $R$ can be sampled from to obtain plausible values of $R$ for forecasting incidence. This method of inferring $R$ is implemented in the $earlyR$ R package \citep{Jombart2017}. 
 % 
-% Estimating the case reproduction numbers for cases $j$ in the calibration window produces a distribution of values of $R$ \citep{Cori2013}. This estimation of $R$ is then utilised to estimate the incidence for the day directly after the end of the calibration window. 
-% The log-likelihood for a range of $R$s based on the computed force of infection can then be calculated:
-% sum(stats::dpois(x[-1], lambda = R * x_lambdas, log = TRUE))
-% x is daily incidence
-% x_lambdas comes from overall_infectivity
-% \textcolor{red}{What I want to say: sum(stats::dpois(x[-1], lambda = R * x\_lambdas, log = TRUE))}
+% % \textcolor{red}{sample\_R}
+% 
+% % Though there was no data on who infected whom, this could be inferred by calculating for each pair of cases the relative likelihood that one was infected by the other \citep{Wallinga2004}. Thus for a given case $j$, the effective reproduction number can be estimated as the sum of the likelihoods $p$ that given cases $i$ were infected by case $j$:
+% % \begin{equation}
+% % R_{j} = \sum_{i}{p_{ij}}
+% % \end{equation}
+% % 
+% % \textcolor{red}{get\_R}
+% % 
+% % Estimating the case reproduction numbers for cases $j$ in the calibration window produces a distribution of values of $R$ \citep{Cori2013}. This estimation of $R$ is then utilised to estimate the incidence for the day directly after the end of the calibration window. 
+% % The log-likelihood for a range of $R$s based on the computed force of infection can then be calculated:
+% % sum(stats::dpois(x[-1], lambda = R * x_lambdas, log = TRUE))
+% % x is daily incidence
+% % x_lambdas comes from overall_infectivity
+% % \textcolor{red}{What I want to say: sum(stats::dpois(x[-1], lambda = R * x\_lambdas, log = TRUE))}
+% % \begin{equation}
+% % p(R) = \sum_{t = 1} log(Pois(x_{t} | R \times \lambda_{t}))
+% % \end{equation}
+% % \textcolor{red}{make sure I converted code into equation correctly}
+% 
+% \subsubsection{Forecasting incidence}
+% \textcolor{red}{project}
+% 
+% To forecast disease incidence using a branching process model, such as the one used in the \textit{projections}-package, the following steps are taken.
+% 
+% The combination of observed daily incidence, serial interval distribution, and sample of plausible values of $R$ can then be used to forecast daily incidence using a branching process. Here daily incidence follows a Poisson process, determined by the daily infectiousness at time $t$, $\lambda_{t}$. $\lambda_{t}$ can be calculated in a similar manner as the force of infection in a window of observed incidence: 
+% 
+% % The force of infection on a given day is the sum of individual forces of infection. The invididual force of infection is computed as the R0 multiplied by the pmf of the serial interval for the corresponding day:
+% % lambda_{i,t} = R0 w(t - t_i)
+% % where 'w' is the PMF of the serial interval and 't_i' is the date of onset of case 'i'.
+% % R values are constant within simulations, so drawn once for all simulations (fix_within = TRUE)
+% 
+% % projections
 % \begin{equation}
-% p(R) = \sum_{t = 1} log(Pois(x_{t} | R \times \lambda_{t}))
+% \lambda_{t} = \sum_{k = 1}^{t-1}I_{k}w(t-k)
 % \end{equation}
-% \textcolor{red}{make sure I converted code into equation correctly}
-
-\subsubsection{Forecasting incidence}
-\textcolor{red}{project}
-
-To forecast disease incidence using a branching process model, such as the one used in the \textit{projections}-package, the following steps are taken.
-
-The combination of observed daily incidence, serial interval distribution, and sample of plausible values of $R$ can then be used to forecast daily incidence using a branching process. Here daily incidence follows a Poisson process, determined by the daily infectiousness at time $t$, $\lambda_{t}$. $\lambda_{t}$ can be calculated in a similar manner as the force of infection in a window of observed incidence: 
-
-% The force of infection on a given day is the sum of individual forces of infection. The invididual force of infection is computed as the R0 multiplied by the pmf of the serial interval for the corresponding day:
-% lambda_{i,t} = R0 w(t - t_i)
-% where 'w' is the PMF of the serial interval and 't_i' is the date of onset of case 'i'.
-% R values are constant within simulations, so drawn once for all simulations (fix_within = TRUE)
-
-% projections
-\begin{equation}
-\lambda_{t} = \sum_{k = 1}^{t-1}I_{k}w(t-k)
-\end{equation}
-where the product of the incidence at time $s$ and the discretised serial interval distribution (probability mass function, $w$) for the time period between time $t$ and $s$ is summed for all days from day $s$ until day $t - 1$.
-
-This force of infection for forecasting day $t$ in conjunction with an $R$ sampled from the likelihood distribution is then used to simulate a daily incidence, $i$ at a future date $t$ with a Poisson process.
-
-\textcolor{red}{what I want to say: stats::rpois(n\_sim, R * lambda)}
-\begin{equation}
-i_{t} =
-\end{equation}
-
-For the following projection days, the forecasted daily incidence during the previous infection days is taken into account when calculating the force of infection.
-
-In R, this projection method can be implemented with the $project$-function of the $projections$ package \citep{Jombart2018}.
+% where the product of the incidence at time $s$ and the discretised serial interval distribution (probability mass function, $w$) for the time period between time $t$ and $s$ is summed for all days from day $s$ until day $t - 1$.
+% 
+% This force of infection for forecasting day $t$ in conjunction with an $R$ sampled from the likelihood distribution is then used to simulate a daily incidence, $i$ at a future date $t$ with a Poisson process.
+% 
+% \textcolor{red}{what I want to say: stats::rpois(n\_sim, R * lambda)}
+% \begin{equation}
+% i_{t} =
+% \end{equation}
+% 
+% For the following projection days, the forecasted daily incidence during the previous infection days is taken into account when calculating the force of infection.
+% 
+% In R, this projection method can be implemented with the $project$-function of the $projections$ package \citep{Jombart2018}.
 
 % This function simulates future incidence based on past incidence data, a selection of plausible reproduction numbers (R), and the distribution of the serial interval (time from primary onset to secondary onset).
 % Explain how branching process models work. Take the calibration window, estimate the likelihood distribution of the reproduction number of the observed incidence.
