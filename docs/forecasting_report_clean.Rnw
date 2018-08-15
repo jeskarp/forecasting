@@ -108,6 +108,9 @@ ebola_table <- rbindlist(lapply(output_files, fread))
 ebola_table$cali_proj_ratio <- round(ebola_table$cali_window_size / ebola_table$proj_window_no, 1)
 ebola_table$pred_type[ebola_table$pred_type == 1] <- 0
 ebola_table$pred_type[ebola_table$pred_type == 3] <- 1
+ebola_table$lm_pred[ebola_table$pred_type == 0] <- 3
+ebola_table$lm_pred[ebola_table$pred_type == 1] <- 2
+ebola_table$lm_pred[ebola_table$pred_type == 2] <- 1
 # SARS
 # list all files in directory named full_proj_metrics.csv
 output_files <- list.files("/home/evelina/Development/forecasting/simulations/sars_8si_norm_new/", pattern = "full_proj_metrics.csv", 
@@ -117,6 +120,9 @@ sars_table <- rbindlist(lapply(output_files, fread))
 sars_table$cali_proj_ratio <- round(sars_table$cali_window_size / sars_table$proj_window_no, 1)
 sars_table$pred_type[sars_table$pred_type == 1] <- 0
 sars_table$pred_type[sars_table$pred_type == 3] <- 1
+sars_table$lm_pred[sars_table$pred_type == 0] <- 3
+sars_table$lm_pred[sars_table$pred_type == 1] <- 2
+sars_table$lm_pred[sars_table$pred_type == 2] <- 1
 # Influenza
 # list all files in directory named full_proj_metrics.csv
 output_files <- list.files("/home/evelina/Development/forecasting/simulations/influenza_8si_norm_new/", pattern = "full_proj_metrics.csv", 
@@ -126,6 +132,9 @@ influenza_table <- rbindlist(lapply(output_files, fread))
 influenza_table$cali_proj_ratio <- round(influenza_table$cali_window_size / influenza_table$proj_window_no, 1)
 influenza_table$pred_type[influenza_table$pred_type == 1] <- 0
 influenza_table$pred_type[influenza_table$pred_type == 3] <- 1
+influenza_table$lm_pred[influenza_table$pred_type == 0] <- 3
+influenza_table$lm_pred[influenza_table$pred_type == 1] <- 2
+influenza_table$lm_pred[influenza_table$pred_type == 2] <- 1
 
 # Combine all diseases into one table
 total_table <- bind_rows(ebola_table, sars_table, influenza_table)
@@ -368,7 +377,7 @@ All data simulation and analyses presented in this report were conducted on R, t
 
 \subsection{Outbreaks and predictive branching process model}
 
-Empirical daily incidence data for three diseases, Ebola, influenza, and SARS, were chosen to assess the performance of the branching process model \citep{Leone2014, Cori2018, Jombart2018a}. Table \ref{outbreak_table} shows the published $R_{0}$, and the mean and standard deviation (in days) of the serial interval for these empirical outbreaks.
+Empirical daily incidence data for three diseases, Ebola, influenza, and SARS, were chosen to assess the performance of the branching process model \citep{Leone2014, Cori2018, Jombart2018a}. The early Ebola outbreak data analysed here was that of the 2014 outbreak in Sierra Leone \citep{Leone2014}. The analysed early influenza outbreak data was from the H1N1 outbreak of 1918 \citep{Cori2018}. The early outbreak data for SARS, on the other hand, was from an outbreak in Canada in 2003 \citep{Cori2018}. Table \ref{outbreak_table} shows the published $R_{0}$, and the mean and standard deviation (in days) of the serial interval for these empirical outbreaks.
 
 For each given disease, 80 simulated outbreaks were run based on the published $R_{0}$  serial interval (in days) for each empiricial disease outbreaks (Table \ref{outbreak_table}). Each simulation was run for eight times the rounded mean serial interval for a population size of 1 million. The length of the simulation was therefore 96 days for Ebola, 24 days for influenza, and 72 days for SARS. The simulations were conducted using the \textit{simOutbreak} function from the package \textit{outbreaker} \citep{Jombart2014}. For projection purposes, a section of this data would later be used to calibrate the predictive branching process model while other sections would be hidden to test the performance of said model.
 
@@ -432,7 +441,7 @@ The force of infection for a day $t$ is calculated as the sum of individual forc
 \begin{equation}
 \lambda_{t} = R \times \sum_{k = 1}^{t}x_{k}w(t - k)
 \end{equation}
-Here $w()$ is the discrete serial interval distribution (probability mass function) for day $k$ and $x$ is the incidence on a given day \citep{Jombart2017}}.
+Here $w()$ is the discrete serial interval distribution (probability mass function) for day $k$ and $x$ is the incidence on a given day \citep{Jombart2017}.
 
 The likelihood of observing incidence $x$ given the value of $R$ in turn incorporates the Poisson probability mass function $F_{\mathcal{P}}$ and is expressed as:
 \begin{equation}
@@ -898,16 +907,16 @@ An interesting trend is seen for the first projection window, where MSE increase
 library(MASS)
 
 # Number diseases
-total_table$disease_num <- 1
+total_table$disease_num <- 3
 total_table$disease_num[total_table$disease == "influenza"] <- 2
-total_table$disease_num[total_table$disease == "sars"] <- 3
+total_table$disease_num[total_table$disease == "sars"] <- 1
   
 # Full model
 residual_lm_start <- lm(residual ~ cali_window_size
                       + factor(disease_num)
                       + log(no_cali_cases)
                       + proj_window_no
-                      + factor(pred_type),
+                      + factor(lm_pred),
                         data = total_table)
 
 # AIC to find most parsimonious model
@@ -919,7 +928,7 @@ residual_lm_ratio <- lm(residual ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + cali_proj_ratio,
                         data = total_table)
 
@@ -928,7 +937,7 @@ residual_lm_inter <- lm(residual ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + proj_window_no * cali_window_size, # additive effect
                         data = total_table)
 
@@ -937,7 +946,7 @@ residual_lm_inter_ratio <- lm(residual ~ cali_window_size
                               + factor(disease_num)
                               + log(no_cali_cases)
                               + proj_window_no
-                              + factor(pred_type)
+                              + factor(lm_pred)
                               + cali_proj_ratio
                               + proj_window_no * cali_window_size, # additive effect
                               data = total_table)
@@ -956,16 +965,16 @@ residual_summary <- summary(residual_lm_basic)
 library(MASS)
 
 # Number diseases
-total_table$disease_num <- 1
+total_table$disease_num <- 3
 total_table$disease_num[total_table$disease == "influenza"] <- 2
-total_table$disease_num[total_table$disease == "sars"] <- 3
+total_table$disease_num[total_table$disease == "sars"] <- 1
   
 # Full model
 mse_lm_start <- lm(mse ~ cali_window_size
                       + factor(disease_num)
                       + log(no_cali_cases)
                       + proj_window_no
-                      + factor(pred_type),
+                      + factor(lm_pred),
                         data = total_table)
 
 # AIC to find most parsimonious model
@@ -977,7 +986,7 @@ mse_lm_ratio <- lm(mse ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + cali_proj_ratio,
                         data = total_table)
 
@@ -986,7 +995,7 @@ mse_lm_inter <- lm(mse ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + proj_window_no * cali_window_size, # additive effect
                         data = total_table)
 
@@ -995,7 +1004,7 @@ mse_lm_inter_ratio <- lm(mse ~ cali_window_size
                               + factor(disease_num)
                               + log(no_cali_cases)
                               + proj_window_no
-                              + factor(pred_type)
+                              + factor(lm_pred)
                               + cali_proj_ratio
                               + proj_window_no * cali_window_size, # additive effect
                               data = total_table)
@@ -1014,16 +1023,16 @@ mse_summary <- summary(mse_lm_inter_ratio)
 library(MASS)
 
 # Number diseases
-total_table$disease_num <- 1
+total_table$disease_num <- 3
 total_table$disease_num[total_table$disease == "influenza"] <- 2
-total_table$disease_num[total_table$disease == "sars"] <- 3
+total_table$disease_num[total_table$disease == "sars"] <- 1
   
 # Full model
 sharpness_lm_start <- lm(sharpness ~ cali_window_size
                       + factor(disease_num)
                       + log(no_cali_cases)
                       + proj_window_no
-                      + factor(pred_type),
+                      + factor(lm_pred),
                         data = total_table)
 
 # AIC to find most parsimonious model
@@ -1035,7 +1044,7 @@ sharpness_lm_ratio <- lm(sharpness ~ cali_window_size
                          + factor(disease_num)
                          + log(no_cali_cases)
                          + proj_window_no
-                         + factor(pred_type)
+                         + factor(lm_pred)
                          + cali_proj_ratio,
                          data = total_table)
 
@@ -1044,7 +1053,7 @@ sharpness_lm_inter <- lm(sharpness ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + proj_window_no * cali_window_size, # additive effect
                         data = total_table)
 
@@ -1053,7 +1062,7 @@ sharpness_lm_inter_ratio <- lm(sharpness ~ cali_window_size
                               + factor(disease_num)
                               + log(no_cali_cases)
                               + proj_window_no
-                              + factor(pred_type)
+                              + factor(lm_pred)
                               + cali_proj_ratio
                               + proj_window_no * cali_window_size, # additive effect
                               data = total_table)
@@ -1072,16 +1081,16 @@ sharpness_summary <- summary(sharpness_lm_inter)
 library(MASS)
 
 # Number diseases
-total_table$disease_num <- 1
+total_table$disease_num <- 3
 total_table$disease_num[total_table$disease == "influenza"] <- 2
-total_table$disease_num[total_table$disease == "sars"] <- 3
+total_table$disease_num[total_table$disease == "sars"] <- 1
   
 # Full model
 bias_lm_start <- lm(bias ~ cali_window_size
                       + factor(disease_num)
                       + log(no_cali_cases)
                       + proj_window_no
-                      + factor(pred_type),
+                      + factor(lm_pred),
                         data = total_table)
 
 # AIC to find most parsimonious model
@@ -1093,7 +1102,7 @@ bias_lm_ratio <- lm(bias ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + cali_proj_ratio,
                         data = total_table)
 
@@ -1102,7 +1111,7 @@ bias_lm_inter <- lm(bias ~ cali_window_size
                         + factor(disease_num)
                         + log(no_cali_cases)
                         + proj_window_no
-                        + factor(pred_type)
+                        + factor(lm_pred)
                         + proj_window_no * cali_window_size, # additive effect
                         data = total_table)
 
@@ -1111,7 +1120,7 @@ bias_lm_inter_ratio <- lm(bias ~ cali_window_size
                               + factor(disease_num)
                               + log(no_cali_cases)
                               + proj_window_no
-                              + factor(pred_type)
+                              + factor(lm_pred)
                               + cali_proj_ratio
                               + proj_window_no * cali_window_size, # additive effect
                               data = total_table)
@@ -1183,7 +1192,7 @@ lm_table[8, 3] <- paste(sprintf("%.2f", round(residual_summary$coefficients[8, 1
 lm_table[9, 3] <- paste(sprintf("%.2f", round(residual_summary$coefficients[9, 1], 2)), "(", sprintf("%.2f", round(residual_summary$coefficients[9, 1] - 1.96 * residual_summary$coefficients[9, 2], 2)), " -- ", sprintf("%.2f", round(residual_summary$coefficients[9, 1] + 1.96 * residual_summary$coefficients[9, 2], 2)), ")", sep = "")
 
 # mse
-lm_table[10, 3] <- paste(sprintf("%.2f", round(mse_summary$coefficients[1, 1], 2)), "(", sprintf("%.2f", round(mse_summary$coefficients[1, 1] - 1.96 * mse_summary$coefficients[1, 2], 2)), " -- ", sprintf("%.2f", round(mse_summary$coefficients[1, 1] + 1.96 * mse_summary$coefficients[1, 2], 2)), ")", sep = "")
+lm_table[10, 3] <- paste(sprintf("%.2f", round(mse_summary$coefficients[1, 1], 2)), "(", sprintf("%.2f", round(mse_summary$coefficients[1, 1] - 1.96 * mse_summary$coefficients[1, 2], 2)), "-- ", sprintf("%.2f", round(mse_summary$coefficients[1, 1] + 1.96 * mse_summary$coefficients[1, 2], 2)), ")", sep = "")
 
 lm_table[11, 3] <- paste(sprintf("%.2f", round(mse_summary$coefficients[2, 1], 2)), "(", sprintf("%.2f", round(mse_summary$coefficients[2, 1] - 1.96 * mse_summary$coefficients[2, 2], 2)), " -- ", sprintf("%.2f", round(mse_summary$coefficients[2, 1] + 1.96 * mse_summary$coefficients[2, 2], 2)), ")", sep = "")
 
@@ -1282,12 +1291,12 @@ lm_table[18, 4] <- signif(mse_summary$coefficients[9, 4], 3)
 lm_table[19, 4] <- signif(mse_summary$coefficients[10, 4], 3)
 
 # sharpness
-lm_table[20, 4] <- signif(sharpness_summary$coefficients[1, 4], 3)
+lm_table[20, 4] <- "\\footnotesize{<}2.00e-16" # signif(sharpness_summary$coefficients[1, 4], 3)
 lm_table[21, 4] <- signif(sharpness_summary$coefficients[2, 4], 3)
 # lm_table[26, 4] <- 
 lm_table[22, 4] <- signif(sharpness_summary$coefficients[3, 4], 3)
 lm_table[23, 4] <- signif(sharpness_summary$coefficients[4, 4], 3)
-lm_table[24, 4] <- signif(sharpness_summary$coefficients[5, 4], 3)
+lm_table[24, 4] <-"\\footnotesize{<}2.00e-16" # signif(sharpness_summary$coefficients[5, 4], 3)
 lm_table[25, 4] <- signif(sharpness_summary$coefficients[6, 4], 3)
 # lm_table[31, 4] <- 
 lm_table[26, 4] <- signif(sharpness_summary$coefficients[7, 4], 3)
@@ -1319,10 +1328,10 @@ addtorow <- list(pos = list(38), command = NULL)
 
 addtorow$command <- c("\\multicolumn{5}{X}{
 \\footnotesize{\\textsuperscript{1} calibration window size: 1-7 mean serial intervals} \\newline 
-\\footnotesize{\\textsuperscript{2} disease: Ebola (baseline), influenza (2), or SARS (3)} \\newline
+\\footnotesize{\\textsuperscript{2} disease: SARS (baseline), influenza (2), or Ebola (3)} \\newline
 \\footnotesize{\\textsuperscript{3} number of cases in calibration window} \\newline 
 \\footnotesize{\\textsuperscript{4} projection window: the distance in mean serial intervals between the end of the calibration window and the end of the projection window} \\newline 
-\\footnotesize{\\textsuperscript{5} type of prediction: all trajectories do not predict new cases (baseline), all trajectories predict new cases (1), some trajectories predict new cases (2)} \\newline 
+\\footnotesize{\\textsuperscript{5} type of prediction: all trajectories do not predict new cases (3), all trajectories predict new cases (2), some trajectories predict new cases (baseline)} \\newline 
 \\footnotesize{\\textsuperscript{6} ratio of calibration window size to projection window number} \\newline 
 \\footnotesize{\\textsuperscript{7} additive interaction between calibration window size and projection window}} \\\\\n")
 
@@ -1330,7 +1339,7 @@ tab <- xtable(lm_table, caption = "The coefficients of the linear regression mod
 
 digits(tab) <- 2
 
-align(tab) = c("p{0.1\\textwidth}", "p{0.1\\textwidth}", "p{0.18\\textwidth}", "p{0.34\\textwidth}", "p{0.13\\textwidth}", "p{0.15\\textwidth}")
+align(tab) = c("p{0.1\\textwidth}", "p{0.1\\textwidth}", "p{0.18\\textwidth}", "p{0.37\\textwidth}", "p{0.12\\textwidth}", "p{0.15\\textwidth}")
 
 print(tab, hline.after=c(-1, 0, 9, 19, 28, 37), comment = FALSE, math.style.exponents = FALSE, include.rownames = FALSE, caption.placement = "bottom", type = "latex", sanitize.rownames.function = identity, sanitize.colnames.function = identity, sanitize.text.function = identity, add.to.row = addtorow, tabular.environment = "tabularx", width = "\\textwidth", size = "\\small")
 @
@@ -1366,12 +1375,19 @@ influenza_2 <- (sum(influenza_table$pred_type == 2) / nrow(influenza_table)) * 1
 
 @
 \FloatBarrier
-
 Table \ref{metric_lm_table} presents the most parsimonious linear regression models with an addition of interaction terms for each of the four performance metrics. A comparison of the AICs of all the linear models can be found in Supplementary Information Table \ref{sim_metric_aic_table}. For the average residual, sharpness, and bias, the best model was one which contained all the explanatory variables and an additive interaction term between calibration window size and projection window number. For the MSE, the best model additionally included the ratio of calibration window size to projection window number. Out of the metrics, the change in sharpness due to the explanatory variables is best explained by the linear regression model with an adjusted R-squared of 0.49, while the MSE was least explained with an adjusted R-squared of 0.05. 
+
+Increasing calibration window size tended to reduce the average residual and increase sharpness and the MSE (Table \ref{metric_lm_table}). This in general suggests that overestimating incidence is likelier when calibration windows are larger, while the range of forecasts becomes narrower. Meanwhile, increasing the number of cases in the calibration window reduced the average residual and increased the MSE, but reduced sharpness and increased bias (Table \ref{metric_lm_table}). The reduction in sharpness could be due to there being fewer stochastic trajectories forecasting an incidence of zero as the number of cases in the calibration window increase, meaning that trajectories will more easily deviate from the median trajectory (SI Fig. \ref{sharpness_type_plot}, \ref{cali_zero_plot}). Having more cases in the calibration window could also increase the chances of a greater overprediction, as a higher incidence incidence in the observation window could translate to greater forecasted incidence, and overestimating by a greater margin is easier when larger incidences are predicted. 
+
+Similarly, the average residual and sharpness decreased with increasing projection window number while MSE and bias increased (Table \ref{metric_lm_table}). This indicates that as the projection window of interest is further in the future, the forecasts are more prone to overestimating incidence and the range of forecasts increases.
+
+Projections that did not contain any zero-incidence trajectories had a higher sharpness and lower bias than projections that contained some trajectories with zero-incidence, while projections that only contained zero-incidence had a lower sharpness and higher bias.
 
 % As the interaction term between calibration window size and projection window number is statistically significant, it suggests that the effect of the projection window number is different for each of the calibration window sizes.
 
-The correlation coefficient of the MSE and average residual was \Sexpr{round(res_mse_cor$estimate, 2)}, which means that MSE tends to decrease with increasing average residual. Bias also decreases with increasing average residual with a correlation coefficient of \Sexpr{round(res_bia_cor$estimate, 2)}. Sharpness, on the other hand, increases as the average residual increases with a correlation coefficient of \Sexpr{round(res_sha_cor$estimate, 2)} and decreases with increasing MSE (\Sexpr{round(mse_sha_cor$estimate, 2)}). Bias is positively correlated with MSE with a correlation coefficient of \Sexpr{round(mse_bia_cor$estimate, 2)}, while bias is negatively correlated with sharpness with a correlation coefficient of \Sexpr{round(sha_bia_cor$estimate, 2)}.
+The correlation coefficient of the MSE and average residual was \Sexpr{round(res_mse_cor$estimate, 2)}, which means that MSE tends to decrease with increasing average residual. Bias also decreases with increasing average residual with a correlation coefficient of \Sexpr{round(res_bia_cor$estimate, 2)}. Additionally, bias is positively correlated with MSE with a correlation coefficient of \Sexpr{round(mse_bia_cor$estimate, 2)}. All three metrics, the average residual, MSE, and bias, are affected by either the extent or the direction of the over- or underprediction of daily incidence. Therefore, it is reasonable to assume that as the value of an average residual becomes slightly less negative as a sign of an overpredicting forecast improving, bias also moves from towards zero and becomes slightly less positive. The extent of this overprediction decreases as the average residual increases, explaining why MSE also reduces. 
+
+Sharpness, on the other hand, increases as the average residual increases with a correlation coefficient of \Sexpr{round(res_sha_cor$estimate, 2)} and decreases with increasing MSE (\Sexpr{round(mse_sha_cor$estimate, 2)}), while bias is negatively correlated with sharpness with a correlation coefficient of \Sexpr{round(sha_bia_cor$estimate, 2)}. This suggests that as the forecast accuracy improves, seen as the average residual, MSE, and bias moving toward 0, the forecast's also forecasts a narrower range of projections. 
 
 % \textcolor{red}{I'm feeling a bit insecure about how I should talk about the linear regression table. Any advice is appreciated. I was thinking that it's overkill to go through each explanatory and metric separately in a case like this, but when I've done regression analysis before for more traditional epidemiological coursework, we discussed all variables in painstaking detail - this isn't very interesting way of doing things for a paper-style report though.}
 
@@ -1385,7 +1401,7 @@ For projections of simulations that contained an estimate of a daily incidence o
 
 %\subsubsection{Prediction metrics}
 
-Daily incidence for the three empirical outbreaks, Ebola, influenza, and SARS, were forecasted and analysed using the same methods as those used for the simulated outbreaks. The incidence curves of the empirical outbreaks can be found in SI Figure \ref{empirical_plot}. Unlike for the simulated outbreaks, none of the projection trajectories for Ebola or influenza included the possibility of a daily incidence of zero for any of the calibration window and projection window combinations. For SARS, only the projections for the first calibration window included the possibility.
+The daily incidence for the three empirical outbreaks, Ebola, influenza, and SARS, had total outbreak sizes of 891 cases, 327 cases, and 147 cases respectively. All of these outbreaks were larger than their corresponding simulated outbreaks (SI Fig. \ref{sim_dist}). The incidence curves of the empirical outbreaks can be found in SI Figure \ref{empirical_plot}. Unlike for the simulated outbreaks, none of the projection trajectories for Ebola or influenza included the possibility of a daily incidence of zero for any of the calibration window and projection window combinations. For SARS, only the projections for the first calibration window included the possibility.
 
 \begin{figure}[h]
 <<all_real_metric_plot, echo = FALSE, fig.width = 8, fig.height = 10>>=
@@ -1448,7 +1464,7 @@ The patterns of performance of the branching process model in forecasting incide
 
 As the model was not predicting zero incidence as often for the empirical outbreaks as for the simulated outbreaks, the sharpness metric performs more as one might have expected it to for the simulated outbreaks as well. For Ebola and influenza, sharpness decreases as the projection window moves further from the calibration window, reflecting increasing uncertainty in the bounds of daily incidence. Additionally, sharpness is seen to increase with increasing calibration window size. Sharpness starts off high for SARS as a forecast of no cases was a possibility. The sharpness then decreases from there as the forecast moves further into the future. From here, the sharpness of the forecasts increases as forecasts move to later dates.
 
-Compared to the simulated outbreaks, the empirical Ebola and influenza outbreaks were overestimating the number of cases in the projection window more consistently, as can be deducted from observing the bias metric for Ebola and influenza (Fig. \ref{all_real_metric_plot}). The overestimation increased with as projection windows were further from calibration windows, as was also observed for the simulated outbreaks. SARS, on the other hand, underestimates incidence for the earlier calibration windows but then starts to overestimate incidence when 
+Compared to the simulated outbreaks, the empirical Ebola and influenza outbreaks were overestimating the number of cases in the projection window more consistently, as can be deducted from observing the bias metric for Ebola and influenza (Fig. \ref{all_real_metric_plot}). The overestimation increased with as projection windows were further from calibration windows, as was also observed for the simulated outbreaks. SARS, on the other hand, underestimates incidence for the earlier calibration windows but then starts to overestimate incidence after the third calibration window. 
 
 %%%%%%%%%%%%%%%%
 %% Discussion %%
@@ -1520,7 +1536,9 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 \begin{singlespace}
 \begin{group}
    % \fontsize{11pt}
-  \bibliography{/home/evelina/Documents/Mendeley/MRes_forecasting.bib}
+  \begin{flushleft}
+    \bibliography{/home/evelina/Documents/Mendeley/MRes_forecasting.bib}
+  \end{flushleft}
 \end{group}
 \end{singlespace}
 
