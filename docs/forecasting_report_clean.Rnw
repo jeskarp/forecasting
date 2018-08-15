@@ -8,7 +8,7 @@
   % Arial or Verdana font
   % 2 cm margins
 
-\documentclass[a4paper, 12pt]{article} % sets document shape and font size
+\documentclass[a4paper, 11pt]{article} % sets document shape and font size
 
 \usepackage[margin=2.0cm]{geometry} % set margins to 2cm
 % \usepackage[document]{ragged2e} % make text left-aligned
@@ -253,7 +253,7 @@ I would like to thank Thibaut Jombart and Anne Cori for providing me with advice
 \newpage
 \section*{Abstract}
 
-Branching process models are often used for forecasting disease incidence in real-time to aid outbreak response. In this work, I set out to evaluate the performance of such models for early outbreak analysis purposes. A branching process model was used to predict disease incidence at different stages of the outbreak for three empirical outbreaks of Ebola, influenza, and SARS in addition to 80 simulated outbreaks based on the $R_{0}$ and serial interval distribution of each of the three outbreaks. The performance of the projected daily incidence was explored through four metrics: the average residual, mean-square relative error, sharpness, and bias. My work suggested that in general the branching process model tends to overestimate the forecasted daily incidence, though forecasts do improve as tje amount of observed data increases and the length of the forecast decreases. When forecasting daily incidence for simulated outbreaks, the model gave a reasonable forecast of up to four mean serial intervals into the future, given a calibration window size of at least two mean serial intervals. For the empirical outbreaks investigated here, it is recommended to not forecast as far with a calibration window of equal size due to the possibility of greatly overestimating daily incidence. 
+Branching process models are often used for forecasting disease incidence in real-time to aid outbreak response. In this work, I set out to evaluate the performance of such models for early outbreak analysis purposes. A branching process model was used to predict disease incidence at different stages of the outbreak for three empirical outbreaks of Ebola, influenza, and SARS in addition to 80 simulated outbreaks based on the $R_{0}$ and serial interval distribution of each of the three outbreaks. The performance of the projected daily incidence was explored through four metrics: the average residual, mean-square relative error, sharpness, and bias. My work suggested that in general the branching process model tends to overestimate the forecasted daily incidence, though forecasts do improve as the amount of observed data increases and the length of the forecast decreases. When forecasting daily incidence for simulated outbreaks, the model gave a reasonable forecast of up to four mean serial intervals into the future, given a calibration window size of at least two mean serial intervals. For the empirical outbreaks investigated here, it is recommended to not forecast as far with a calibration window of equal size due to the possibility of greatly overestimating daily incidence. 
 
 % \textcolor{red}{end with a general guideline sentence and make less dry} 
 
@@ -287,7 +287,7 @@ Having an estimation of the current $R$ and numbers of future incidence can be u
 
 For instance, $R$ can be estimated and used for forecasting incidence using a exponential growth rate model where a growth rate $r$ is fit to the cumulative incidence, which can then be used to estimate $R$ \citep{Chowell2007, Wallinga2007}. This relies on the assumption that the early growth of the epidemic is exponential \citep{Chowell2007}. A compartmental model, characterised by it having compartments for every disease category of interest and rates describing the movement in and out of the compartments, is another method that can be used to forecast daily incidence \citep{Anderson1991, Funk2018}. This is achieved by fitting the model to existing incidence data through estimating ranges of values that the model parameters can take by and then using the fitted model to obtain daily incidence forecasts \citep{Funk2018}.
 
-Branching process models are another method for estimating transmissibility and forecasting incidence in real-time during infectious disease outbreaks \citep{Nouvellet2017}. A branching process can be used to stochastically model the number of offspring produced by a given generation of individuals in discrete time \textcolor{red}{REF}. This theory can be applied to inferring $R$ and forecasting disease incidence.
+Branching process models are another method for estimating transmissibility and forecasting incidence in real-time during infectious disease outbreaks \citep{Nouvellet2017}. A branching process can be used to stochastically model the number of offspring produced by a given generation of individuals in discrete time \citep{Jombart2018}. This theory can be applied to inferring $R$ and forecasting disease incidence.
 
 Given an observation window containing the daily incidence of symptom onset for a number of days and a serial interval distribution, a branching process model can be used to infer $R$ \citep{Cori2013}. This is achieved through considering the relative likelihood of a given case infecting any other case in the observation window i.e. how likely is it that another case was the offspring of that given case \citep{Wallinga2004, Cori2013}. These case-specific $R$s can then be used to obtain a $R$ likelihood distribution for the whole observation window \citep{Cori2013}. This in turn is used to forecast daily incidence, as $R$ states how many susceptibles a case infects on average \citep{Nouvellet2017}. Compared to the previously discussed modelling methods, branching process models have a few distinctive features. These include their ability to consider the full serial interval distribution when forecasting incidence \citep{Wallinga2004, Cori2013}. Additionally, unlike compartmental models, they typically assume an infinite pool of susceptibles. 
 
@@ -431,11 +431,10 @@ print(tab, hline.after=c(-1, 0, 3), comment = FALSE, math.style.exponents = FALS
 
 To forecast daily disease incidence, a branching process forecasting method based on Cori et al.'s method for estimating $R$ was used \citep{Cori2013, Jombart2018}. Before forecasting, the observed daily incidence (cases per day) and known estimates of the serial interval distribution were used to obtain a maximum likelihood estimate for the effective reproduction number, $R$. Here it is assumed that the serial interval follows a discrete Gamma distribution.
 
-The model used by this $R$ inference method describes daily incidence $x_{t}$ as:
+The model used by this $R$ inference method describes daily incidence $x_{t}$ as a Poisson process, $\mathcal{P}()$ determined by the total force of infection $\lambda_{t}$  \citep{Cori2013, Jombart2017}:
 \begin{equation}
 x_{t} \sim \mathcal{P}(\lambda_{t})
 \end{equation}
-where the total force of infection for a given day, $\lambda_{t}$, determines the Poisson process $P()$ \citep{Cori2013, Jombart2017}.
 
 The force of infection for a day $t$ is calculated as the sum of individual forces of infection for that day:
 \begin{equation}
@@ -556,7 +555,7 @@ projection_plot
 \clearpage
 \subsection{Performance metrics and their analysis}
 
-The performance of different calibration windows with varying projection windows was quantified by observing the average residual, mean-square relative error (MSE), sharpness, and bias of the projections for each projection window of each simulated or real outbreak. Of these metrics, the average residual and MSE are more well-established, while the metrics sharpness and bias are adapted from Funk et al \citep{Funk2018}.  
+The performance of different calibration windows with varying projection windows was quantified by observing the average residual, mean-square relative error (MSE), sharpness, and bias of the projections for each projection window of each simulated or real outbreak. Of these metrics, the average residual is a well-established method of measuring error, while the usage of MSE was inspired from Viboud et al., and the sharpness and bias metrics are adapted from Funk et al. \citep{Viboud2017, Funk2018}.  
 
 The average residual, measuring whether the model is over- or under-predicting values while taking into account the magnitude of the difference, was calculated for a given projection day $t$ as the mean of differences between the true incidence $x$ and projected incidence $p$ for all $I$ stochastic trajectories:
 \begin{equation}
@@ -676,7 +675,7 @@ The most parsimonius model was selected stepwise out of a starting model consist
 \subsection{Simulated outbreaks}
 
 % The real and simulated outbreaks were fitted with multiple calibration windows and projection windows, as exemplified with the real outbreak datasets in Fig. \ref{projection_plot}. As is seen in the figure, some time windows are projected for more than once, as often multiple projection windows at different distances from the calibration window are predicted based on a single calibration window. The predicted daily incidence for the real Ebola and influenza outbreaks is overestimated especially when forecasts are based on early outbreak disease incidence data and incidence is forecasted for many projection windows
-% \subsubsection{Prediction metrics}
+% \subsubsection{performance metrics}
 
 The simulated outbreaks varied in total outbreak size both within and between diseases. The length of simulated outbreak also varied between diseases as each simulation was run for eight times the mean serial interval of a given disease. Consquently, the Ebola-like simulations experienced the largest outbreaks of up to 600 cases, whilst the influenza outbreaks barely reached 50 cases (SI Fig. \ref{sim_dist}). This wide variety in outbreak size resulted in forecasts of irregular quality. Figure \ref{good_bad_plot} exemplifies this with three representative forecasts for simulated Ebola-like outbreaks. While some forecasts were near the true incidence and with a relatively narrow range of projections, others had either a wide range of projections, a range that did more often not include the true daily incidence, or both.  
 
@@ -883,7 +882,7 @@ bias_sub2 <- ggplot(bias_iqr, aes(x = cali_proj, color = cali_window_size)) +
 # Call plot
 multiplot(residual_sub2, mse_sub2, sharpness_sub2, bias_sub2)
 @
-\caption{The medians (horizontal line in box), interquartile ranges (box), 95\% quantile ranges (whiskers) of the four prediction metrics - average residual, mean-square error (MSE), sharpness, and bias, for Ebola-like (left), influenza-like (middle), and SARS-like (right) outbreaks for projection window's distance from the calibration window increases from 1 to 4 for calibration windows of size 1 (dark blue), 2 (blue), and 4 (light blue).}
+\caption{The medians (horizontal line in box), interquartile ranges (box), 95\% quantile ranges (whiskers) of the four performance metrics - average residual, mean-square error (MSE), sharpness, and bias, for Ebola-like (left), influenza-like (middle), and SARS-like (right) outbreaks for projection window's distance from the calibration window increases from 1 to 4 for calibration windows of size 1 (dark blue), 2 (blue), and 4 (light blue).}
 \label{all_metric_plot}
 \end{figure}
 \FloatBarrier
@@ -1377,7 +1376,7 @@ influenza_2 <- (sum(influenza_table$pred_type == 2) / nrow(influenza_table)) * 1
 \FloatBarrier
 Table \ref{metric_lm_table} presents the most parsimonious linear regression models with an addition of interaction terms for each of the four performance metrics. A comparison of the AICs of all the linear models can be found in Supplementary Information Table \ref{sim_metric_aic_table}. For the average residual, sharpness, and bias, the best model was one which contained all the explanatory variables and an additive interaction term between calibration window size and projection window number. For the MSE, the best model additionally included the ratio of calibration window size to projection window number. Out of the metrics, the change in sharpness due to the explanatory variables is best explained by the linear regression model with an adjusted R-squared of 0.49, while the MSE was least explained with an adjusted R-squared of 0.05. 
 
-Increasing calibration window size tended to reduce the average residual and increase sharpness and the MSE (Table \ref{metric_lm_table}). This in general suggests that overestimating incidence is likelier when calibration windows are larger, while the range of forecasts becomes narrower. Meanwhile, increasing the number of cases in the calibration window reduced the average residual and increased the MSE, but reduced sharpness and increased bias (Table \ref{metric_lm_table}). The reduction in sharpness could be due to there being fewer stochastic trajectories forecasting an incidence of zero as the number of cases in the calibration window increase, meaning that trajectories will more easily deviate from the median trajectory (SI Fig. \ref{sharpness_type_plot}, \ref{cali_zero_plot}). Having more cases in the calibration window could also increase the chances of a greater overprediction, as a higher incidence incidence in the observation window could translate to greater forecasted incidence, and overestimating by a greater margin is easier when larger incidences are predicted. 
+Increasing calibration window size tended to reduce the average residual and increase sharpness and the MSE (Table \ref{metric_lm_table}). This in general suggests that overestimating incidence is more likely when calibration windows are larger, while the range of forecasts becomes narrower. Meanwhile, increasing the number of cases in the calibration window reduced the average residual and increased the MSE, but reduced sharpness and increased bias (Table \ref{metric_lm_table}). The reduction in sharpness could be due to there being fewer stochastic trajectories forecasting an incidence of zero as the number of cases in the calibration window increase, meaning that trajectories will more easily deviate from the median trajectory (SI Fig. \ref{sharpness_type_plot}, \ref{cali_zero_plot}). Having more cases in the calibration window could also increase the chances of a greater overprediction, as a higher incidence incidence in the observation window could translate to greater forecasted incidence, and overestimating by a greater margin is easier when larger incidences are predicted. 
 
 Similarly, the average residual and sharpness decreased with increasing projection window number while MSE and bias increased (Table \ref{metric_lm_table}). This indicates that as the projection window of interest is further in the future, the forecasts are more prone to overestimating incidence and the range of forecasts increases.
 
@@ -1393,15 +1392,15 @@ Sharpness, on the other hand, increases as the average residual increases with a
 
 The sharpness, described as a measure of how narrow the range of predictions for a given time window are from a scale of 0 (wide) to 1 (narrow), varied by the types of predictions that were given within a single projection of a simulation (SI Fig. \ref{sharpness_type_plot}). There are three possible types of projections: ones where all of the projection's 10,000 projection trajectories include a prediction of a daily incidence of 0 cases, ones where some of the trajectories include a prediction of daily incidence of 0 cases, and ones where none of the trajectories include a prediction of a daily incidence of 0 cases.
 
-For projections of simulations that contained an estimate of a daily incidence of 0, the sharpness varied more wildly than for projections, also dipping to lower sharpnesses than the projections that did not contain a daily incidence of 0, reflecting the possibility of a projection to spiral out of control and have a wide range of predictions for a given projection window (SI Fig. \ref{sharpness_type_plot}). Additionally, the distribution of sharpness scores within the zero-incidence-including groups was split into two for each simulated disease - either sharpness was very higher than that of the group that did not include any zero-incidence, or sharpness was lower than the majority of the sharpness distribution for the prediction type group that did not include zero-incidence (SI Fig. \ref{sharpness_type_plot}). For the Ebola simulations' forecasts, \Sexpr{round(ebola_2, 1)}\% contained zero-incidence, while \Sexpr{round(influenza_2, 1)}\% and \Sexpr{round(sars_2, 1)}\% of influenza and SARS simulations' forecasts contained the prediction of zero-incidence, respectively. The high proportion of forecasts containing zero-incidence suggests that for the calibration windows used in this study, the branching process model could often not be used to decipher whether the outbreak would undergo stochastic extinction or not based on the calibration windows used in this study.
+For projections of simulations that contained an estimate of a daily incidence of 0, the sharpness varied more wildly than for projections, also dipping to lower sharpnesses than the projections that did not contain a daily incidence of 0, reflecting the possibility of a projection to spiral out of control and have a wide range of predictions for a given projection window (SI Fig. \ref{sharpness_type_plot}). Additionally, the distribution of sharpness scores within the zero-incidence-including groups was split into two for each simulated disease - either sharpness was much higher than that of the group that did not include any zero-incidence, or sharpness was lower than the majority of the sharpness distribution for the prediction type group that did not include zero-incidence (SI Fig. \ref{sharpness_type_plot}). For the Ebola simulations' forecasts, \Sexpr{round(ebola_2, 1)}\% contained zero-incidence, while \Sexpr{round(influenza_2, 1)}\% and \Sexpr{round(sars_2, 1)}\% of influenza and SARS simulations' forecasts contained the prediction of zero-incidence, respectively. The high proportion of forecasts containing zero-incidence suggests that for the calibration windows used in this study, the branching process model could often not be used to decipher whether the outbreak would undergo stochastic extinction or not.
 
 \FloatBarrier
-\newpage
+% \newpage
 \subsection{Empirical outbreaks}
 
-%\subsubsection{Prediction metrics}
+%\subsubsection{performance metrics}
 
-The daily incidence for the three empirical outbreaks, Ebola, influenza, and SARS, had total outbreak sizes of 891 cases, 327 cases, and 147 cases respectively. All of these outbreaks were larger than their corresponding simulated outbreaks (SI Fig. \ref{sim_dist}). The incidence curves of the empirical outbreaks can be found in SI Figure \ref{empirical_plot}. Unlike for the simulated outbreaks, none of the projection trajectories for Ebola or influenza included the possibility of a daily incidence of zero for any of the calibration window and projection window combinations. For SARS, only the projections for the first calibration window included the possibility.
+The total outbreak sizes for the three empirical outbreaks, Ebola, influenza, and SARS, were 891 cases, 327 cases, and 147 cases respectively. All of these outbreaks were larger than their corresponding simulated outbreaks (SI Fig. \ref{sim_dist}). The incidence curves of the empirical outbreaks can be found in SI Figure \ref{empirical_plot}. Unlike for the simulated outbreaks, none of the projection trajectories for Ebola or influenza included the possibility of a daily incidence of zero for any of the calibration window and projection window combinations. For SARS, only the projections for the first calibration window included the possibility.
 
 \begin{figure}[h]
 <<all_real_metric_plot, echo = FALSE, fig.width = 8, fig.height = 10>>=
@@ -1454,17 +1453,17 @@ bias_sub <- ggplot(sub_table, aes(x = cali_proj, y = bias, color = cali_window_s
 # Call plot
 multiplot(residual_sub, mse_sub, sharpness_sub, bias_sub)
 @
-\caption{How the four prediction metrics for empirical Ebola, influenza, and SARS outbreaks differ as the projection window's distance from the calibration window increases from 1 to 4 for calibration windows of size 1 (dark blue), 2 (blue), and 4 (light blue).}
+\caption{How the four performance metrics for empirical Ebola, influenza, and SARS outbreaks differ as the projection window's distance from the calibration window increases from 1 to 4 for calibration windows of size 1 (dark blue), 2 (blue), and 4 (light blue).}
 \label{all_real_metric_plot}
 \end{figure}
 
-As can be seen in Figure \ref{all_real_metric_plot}, the branching process model fared worse at predicting daily incidence on the empirical outbreaks than on the simulated outbreaks according to the prediction metrics as exhibited by the scale of differences between the model's performance for different calibration and projection windows the the average residual and MSE. As with the simulated outbreaks, the full performance metrics for each calibration window size and projection window size combination is presented in the Supplementary Information (section 3.2).
+As can be seen in Figure \ref{all_real_metric_plot}, the branching process model fared worse at forecasting daily incidence for the empirical outbreaks than for the simulated outbreaks. This is exhibited by the scale of differences in the average residual and MSE for different calibration and projection windows. For example, the empirical Ebola outbreak's average residual and MSE estimates for a calibration size of 1 mean serial interval and a projection window number of 4 are approximately 9 times and 3 times greater respectively than the more negative end of the 95\% quantile range for the corresponding simulated Ebola-like outbreaks (Fig. \ref{all_metric_plot}, \ref{all_real_metric_plot}).  As with the simulated outbreaks, the full performance metrics for each calibration window size and projection window size combination is presented in the Supplementary Information (section 3.2).
 
-The patterns of performance of the branching process model in forecasting incidence for the SARS outbreak is different than those of the Ebola and influenza outbreaks Figure \ref{all_metric_plot}. The SARS outbreak analysed here is one which had two clusters of cases with a period of few cases in between. The outbreak window observed here only covers the first cluster, and the branching process model did not perform well at predicting future incidence for the time period of lower incidence after the first cluster. The Ebola and influenza outbreaks analysed in this study were more clearly still in the initial phase of the outbreak, where daily incidence may still be increasing. 
+The patterns of performance of the branching process model in forecasting incidence for the SARS outbreak is different than those of the Ebola and influenza outbreaks Figure \ref{all_metric_plot}. The early SARS outbreak analysed here is one which seemed to have reached its peak though beyond the scope of the early outbreak analysis covered in this study, another peak of cases can be observed in the full dataset (\ref{Cori2014}). As based on the observation window in this study it seems that the peak of the outbreak is captured in the calibration windows, which is not well-captured by the branching process model. The Ebola and influenza outbreaks analysed in this study were more clearly still in the initial phase of the outbreak for the dates of data that were used here, where daily incidence may still be increasing. 
 
-As the model was not predicting zero incidence as often for the empirical outbreaks as for the simulated outbreaks, the sharpness metric performs more as one might have expected it to for the simulated outbreaks as well. For Ebola and influenza, sharpness decreases as the projection window moves further from the calibration window, reflecting increasing uncertainty in the bounds of daily incidence. Additionally, sharpness is seen to increase with increasing calibration window size. Sharpness starts off high for SARS as a forecast of no cases was a possibility. The sharpness then decreases from there as the forecast moves further into the future. From here, the sharpness of the forecasts increases as forecasts move to later dates.
+As the model was not forecasting zero-incidence as often for the empirical outbreaks as for the simulated outbreaks, the forecasts do not often reach a sharpness of 1 (Fig. \ref{all_real_metric_plot}, SI Fig. \ref{real_whole_sharpness}). For Ebola and influenza, sharpness decreases as the projection window moves further from the calibration window, reflecting a widening range of stochastic trajectories for daily incidence. Additionally, sharpness is seen to increase with increasing calibration window size. Sharpness starts off high for SARS as a forecast of zero-incidence is a possibility. It then decreases with increasing projection window numbers as the forecast moves further into the future. From here, the sharpness of the forecasts increases as forecasts move to later dates.
 
-Compared to the simulated outbreaks, the empirical Ebola and influenza outbreaks were overestimating the number of cases in the projection window more consistently, as can be deducted from observing the bias metric for Ebola and influenza (Fig. \ref{all_real_metric_plot}). The overestimation increased with as projection windows were further from calibration windows, as was also observed for the simulated outbreaks. SARS, on the other hand, underestimates incidence for the earlier calibration windows but then starts to overestimate incidence after the third calibration window. 
+Compared to the simulated outbreaks, the empirical Ebola and influenza outbreaks were overestimating the number of cases in the projection window more consistently, as can be deduced from observing the bias metric for Ebola and influenza (Fig. \ref{all_real_metric_plot}). Where simulated Ebola and influenza outbreaks generally had bias medians between 0 and 0.5, the empirical outbreaks' bias is near 1 for many Ebola outbreak forecasts and some influenza outbreak forecasts(Fig. \ref{all_metric_plot}, \ref{all_real_metric_plot}, SI Fig. \ref{real_whole_bias}). The overestimation tends to increase as projection windows are further from calibration windows, as was also observed for the simulated outbreaks. The SARS outbreak's forecasts, on the other hand, underestimate incidence for the earlier calibration windows but then starts to overestimate incidence after the third calibration window. 
 
 %%%%%%%%%%%%%%%%
 %% Discussion %%
@@ -1475,34 +1474,32 @@ Compared to the simulated outbreaks, the empirical Ebola and influenza outbreaks
 % \textcolor{red}{Thibaut and I didn't discuss my Discussion much either, but he would like it to answer questions such as "When does the model work?" "When didn't it work so well" "Are we good at estimating uncertainty?" "Are there any systematic biases?" "I have X amount of data - how far can I project? Can I trust what I have projected for the next serial interval"}
 
 % \subsection{Summary of findings and general discussion}
-Overall, the analysis of forecasted incidence based on simulated outbreaks of Ebola-like and influenza-like outbreaks found that a forecast is more trustworthy the longer the calibration window is and the closer projection days of interest are to the calibration window (Fig. \ref{all_metric_plot}). This same trend holds for the empirical Ebola and influenza outbreaks as well, but not for SARS (Fig. \ref{all_real_metric_plot}).   
+Overall, the analysis of daily incidence forecasts based on simulated Ebola-like and influenza-like outbreaks found that a forecast is more trustworthy the longer the calibration window is and the closer projection window of interest is to the calibration window (Fig. \ref{all_metric_plot}). This same trend holds for the empirical Ebola and influenza outbreaks as well (Fig. \ref{all_real_metric_plot}).   
 
 % Discussion of performance metrics 
-While the branching process model was better at forecasting daily incidence for simulated outbreaks according to the residual, MSE, and bias, the sharpness of the forecasts was arguably just as good or better for the empirical outbreaks' forecasts (Fig. \ref{all_metric_plot}, \ref{all_real_metric_plot}). This could be because the simulated outbreaks represented an ideal scenario where every case is reported, even the index case and the few sporadic cases that occurred before the outbreak started to gain momentum, unlike the empirical outbreaks for which the outbreak started at a point where there were already cases every day or nearly so (SI Fig. \ref{empirical_plot}). This meant that the simulated outbreaks had much uncertainty at the beginning of their outbreaks as to whether the outbreak would go extinct or not, resulting in many predictions having a wider scope of possible scenarios that could take place, especially as projection windows were taken further from the calibration windows.
+While the branching process model was better at forecasting daily incidence for simulated outbreaks according to the residual, MSE, and bias, the sharpness was not as much affected for the empirical outbreaks' forecasts (Fig. \ref{all_metric_plot}, \ref{all_real_metric_plot}). The better performance of the simulated outbreaks could be due to them representing an ideal scenario where every case is reported, unlike the empirical outbreaks for which the outbreak started at a point where there were already cases every day or nearly so and for which the extent of case reporting is not known (SI Fig. \ref{empirical_plot}). 
 
-Out of the performance metrics used in this study, the MSE may have been superfluous considering that the same trends could be seen with the average residual, though their scales were slightly different. Additionally, sharpness as a performance metric might be more informative for later stage outbreaks or outbreaks where the forecast suggests that the chances of the outbreak dying off are slim. For the simulated outbreaks, it may have been too early to evaluate sharpness in a coherent matter, as the forecasts were predicting the outbreak to die out.
+Due to the simulated outbreaks having perfect reporting and including the sporadic cases that occurred in the first few days of the outbreak, the forecasts suggested more uncertainty at the beginning of the outbreaks as to whether the outbreak would go extinct or not (SI Fig. \ref{cali_zero_plot}). This could have contributed to their forecasts having a wider scope of possible scenarios, shown by a wide range of outcomes according to the stochastic trajectories of the projection and widening 95\% quantile ranges for the performance metrics as projection window numbers increased.
 
-While the branching process model had a tendency of overestimating the forecasted incidence of simulated outbreaks, this was exasperated for early calibration windows compared to later calibration windows and further projection windows in comparison to ones closer to the calibration window. The extent to which the reduction in overestimating with later calibration window size was due to there being more days' worth of cases or due to the outbreak being further along in its growth is a question that cannot be answered with the current model, as the force of infection calculation used for estimating the number of cases in the future does not work as intended if the contribution of cases from earlier on in the outbreak to the force of infection are ignored.
+Out of the performance metrics used in this study, the MSE may have been superfluous considering that the same trends could be seen with the average residual, that the two metrics were highly correlated, and that the MSE does not take into account whether a forecast is over- or underpredicting, but rather the extent to which the forecast is inaccurate. Additionally, sharpness as a performance metric might be more informative for later stage outbreaks or outbreaks where the forecast suggests that the chances of the outbreak dying off are slim. For the simulated outbreaks, it may have been too early to evaluate sharpness in a coherent matter, as the forecasts were predicting the outbreak to die out.
 
-It is possible that Ebola-like outbreaks were observed to have the greatest overestimations in forecasted incidence due to them also having the largest outbreak sizes (SI Fig. \ref{sim_dist}). The average residual considers the absolute difference between the projection and true data rather than the relative difference. This means that if one model forecasts 20 cases when there were actually 10 and another 2 cases when there was 1, the average residual of the model that forecasted 20 cases will be worse than the one that predicted 2 cases even though both models forecasted two times too many cases.
+While the branching process model had a tendency of overestimating the forecasted incidence of simulated outbreaks in general, this effect was highlighted for early calibration windows compared to later calibration windows and later projection window numbers in comparison to ones closer to the calibration window (Fig. \ref{all_metric_plot}). The overestimation does reduce with larger calibrarion window size (Table \ref{metric_lm_table}). This could be due to there being more days' worth of cases or due to the outbreak, if it did not go extinct, being more established. Whether the overestimation would be reduced if calibration window sizes would all be of the same length is a question that cannot be answered with the current model, as the method of calculating force of infection requires the contribution of the individual forces of infection of cases from earlier on in the outbreak. It is possible that Ebola-like outbreaks were observed to have the greatest overestimations in forecasted incidence due to them also having the largest outbreak sizes (SI Fig. \ref{sim_dist}). This is because metrics such as the average residual consider the absolute difference between the projection and true data rather than the relative difference.
 
-The empirical SARS forecasts behaved differently from the Ebola and influenza forecasts and were quite far from the true incidence towards the end of the observation window. While retrospectively the reason for why this happened can explained through noting that this particular outbreak consisted of two peaks of cases instead of one, it does provide a reminder of the limitations of the branching process model used for this exercise. The model assumes that that the growth of the outbreak, if it happens, will be exponential. Also, a value for $R$ is drawn only once for the forecast, which means that the quality of the forecast relies on an absence of change in $R$. Applying this model to an outbreak that does not follow these criteria will understandably result in sub par projections. Others have also noted the difficulties faced by branching process modelling methods when encountering a non-exponentially growing outbreak \citep{Nouvellet2017, Viboud2017}.
+The empirical SARS forecasts behaved differently from the Ebola and influenza forecasts and were quite far from the true incidence towards the end of the observation window. While retrospectively the reason for this can be explained through noting that this particular outbreak consisted of two peaks of cases instead of one, it does provide a reminder of the limitations of the branching process model used for this exercise. The model assumes that that the growth of the outbreak, if it happens, will be exponential. Also, a value for $R$ is drawn only once for the forecast, which means that the quality of the forecast relies on an absence of change in $R$. Applying this model to an outbreak that does not follow these criteria will understandably result in sub par projections. Others have also noted the difficulties faced by branching process modelling methods when encountering a non-exponentially growing outbreak \citep{Nouvellet2017, Viboud2017}.
 
 % , much like applying Farr's law to the HIV epidemic \citep{Artzrouni1990}. The only problem with avoiding the wrong shape of outbreak for the tool in question is that when it comes to real-time forecasting of outbreaks, its shape is not known in advance. 
 
 % The early Ebola and influenza outbreaks were of a more suitable shape to be modelled by the branching process model in this study than that of SARS (SI Fig. \ref{empirical_plot}).
 
 % Limitations
-One of the limitations of this study is that the performance of the forecasting method is mostly evaluated under ideal circumstances on simulated outbreaks that have been created using a similar model. This means that abnormalities, such as unexpected growth curves, are not a concern and are not considered. Regardless, as the performance of the forecasting method used in this study has not been evaluated before, it can be considered reasonable to start from evaluating its performance for the ideal scenario.
-
-There is also a loss of information regarding forecast performance when it is considered for a time window rather than a number of days individually.
+One of the limitations of this study is that the performance of the forecasting method is mostly evaluated under ideal circumstances on simulated outbreaks that have been created using a similar model. This means that abnormalities, such as unexpected growth curves, are not a concern and are not considered. Regardless, as the performance of the forecasting method used in this study has not been evaluated before, it can be considered reasonable to start from evaluating its performance for the ideal scenario. There is also a loss of forecast performance information when evaluating time windows rather than individual days. This could mean that there may be trends in forecast performance within the time windows that have gone unobserved.
 
 % Generalised advice
 Given a scenario with minimal noise, such as when forecasting daily incidence of simulated outbreaks, the distributions of average residuals and bias scores in my results suggest that the true incidence is included in the 95\% projection interval for forecasts that are up to four mean serial intervals' worth of days in length given that the calibration window's size is at least two mean serial intervals (Fig. \ref{all_metric_plot}, SI Fig. \ref{whole_residual},  \ref{whole_bias}). The extent of incidence overprediction does worsen with increasing forecast length and the risk of a grossly overestimating forecast increases with the length of the forecast (SI Fig. \ref{whole_mse}).
 
 Based on the empirical outbreaks analysed in this study, the aforementioned guidelines for maintaining reasonable forecast performance may not apply for empirical outbreaks but would likely be more conservative. The average residuals of the the more suitably-shaped Ebola and influenza outbreaks' forecasts became overestimated at a greater scale than those of the simulated outbreaks (Fig. \ref{all_metric_plot}, \ref{all_real_metric_plot}, SI Fig. \ref{whole_residual}, \ref{real_whole_residual}). Additionally, the forecasts for empirical outbreaks tended to overestimate incidence occasionally reaching a full bias of 1, which was not seen in the simulated outbreaks' forecasts (SI Fig. \ref{whole_bias}, \ref{real_whole_bias}). 
 
-In future work, the impact of factors such as under-reporting, reporting delays, or super-spreading on the performance of the branching process model could be investigated to identify further possible precautions that should be kept in mind when forecasting. The branching process model's performance on a wider array of empirical outbreaks could be tested and regression analysis could be performed on empirical outbreaks as well. In addition, the forecasts' performance for varying splits of time window, such as weeks rather than mean serial intervals or merely individual days could be investigated.
+In future work, the impact of factors such as under-reporting, reporting delays, or super-spreading on the performance of the branching process model could be investigated to identify further possible precautions that should be kept in mind when forecasting. The branching process model's performance on a wider array of empirical outbreaks could be tested and a linear regression analysis could be performed on empirical outbreaks as well. In addition, the forecasts' performance for varying splits of time window, such as weeks rather than mean serial intervals or merely individual days could be investigated.
 
 %Points to discuss:
 %\begin{itemize}
@@ -1524,10 +1521,6 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 
 % \textcolor{red}{I feel like I should be comparing my findings to other peoples' work and reference some papers in here but I have not done that yet.}
 
-\subsection{Conclusions}
-
-\textcolor{red}{Conclusions here}
-
 %%%%%%%%%%%%%%%%
 %% References %%
 %%%%%%%%%%%%%%%%
@@ -1537,7 +1530,7 @@ In future work, the impact of factors such as under-reporting, reporting delays,
 \begin{group}
    % \fontsize{11pt}
   \begin{flushleft}
-    \bibliography{/home/evelina/Documents/Mendeley/MRes_forecasting.bib}
+    {\bibliography{/home/evelina/Documents/Mendeley/MRes_forecasting.bib}}
   \end{flushleft}
 \end{group}
 \end{singlespace}
@@ -1708,7 +1701,7 @@ multiplot(ebola_sim_dist, flu_sim_dist, sars_sim_dist)
 
 \FloatBarrier
 \newpage
-\subsection{Full prediction metrics}
+\subsection{Full performance metrics}
 \subsubsection{Average residual}
 \begin{figure}[h]
 \begin{center}
@@ -1955,95 +1948,12 @@ bias_massive2
 \end{figure}
 \FloatBarrier
 
-\newpage
-\subsection{Distribution of metrics}
-\begin{figure}[h]
-<<dist_plot, echo = FALSE, fig.width = 8, fig.height = 7.5>>=
-new_mse_table <- total_table %>% mutate(mse_new = ifelse(mse > 30, 30, mse))
-new_residual_table <- total_table %>% mutate(residual_new = ifelse(residual < -20, -20, residual))
-
-mse_dist <- ggplot(new_mse_table, aes(x = mse_new, fill = factor(disease, levels = c("influenza", "sars", "ebola")))) +
-                    geom_histogram(alpha = 0.4, binwidth = 0.5, position = "identity") + 
-                    labs(y = "Frequency", x = "MSE") +
-                    theme(legend.position = "none") +
-                    guides(fill = guide_legend(reverse = TRUE))
-
-residual_dist <- ggplot(new_residual_table, aes(x = residual_new, fill = disease)) +
-                        geom_histogram(alpha = 0.4, binwidth = 0.5, position = "identity") + 
-                        labs(y = "Frequency", x = "Average Residual") +
-                        theme(legend.position = "none")
-
-sharp_dist <- ggplot(total_table, aes(x = sharpness, fill = disease)) +
-                     geom_histogram(alpha = 0.4, binwidth = 0.02, position = "identity") + 
-                     labs(y = "Frequency", x = "Sharpness") +
-                     theme(legend.position = "none")
-
-bias_dist <- ggplot(total_table, aes(x = bias, fill = disease)) +
-                     geom_histogram(alpha = 0.4, binwidth = 0.05, position = "identity") + 
-                     labs(y = "Frequency", x = "Bias") +
-                     theme(legend.position = "none")
-
-bias_freq <- ggplot(total_table, aes(bias, colour = disease)) +
-                    geom_freqpoly(binwidth = 0.05)
-
-multiplot(mse_dist, residual_dist, sharp_dist, bias_dist)
-
-@
-\caption[Maybe useless]{The distributions of prediction metrics for Ebola (red), influenza (green), and SARS (blue).}
-\label{dist_plot}
-\end{figure}
-
 \FloatBarrier
 \newpage
 \subsection{Zero-incidence}
 \begin{figure}[h]
-<<pred_case_plot, echo = FALSE, fig.width = 7, fig.height = 3>>=
-# Convert days since case to SIs since case
-total_table$si[total_table$disease == "ebola"] <- 11.6
-total_table$si[total_table$disease == "influenza"] <- 2.6
-total_table$si[total_table$disease == "sars"] <- 8.7
-total_table$si_since_case <- total_table$days_since_case / total_table$si
-
-pred_case_fig <- ggplot(total_table, aes(factor(pred_type),
-                     si_since_case, color = factor(disease), fill = factor(disease))) +
-                     facet_wrap(~disease, scales = "free") +
-                     geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1)) +
-                     geom_boxplot(width = 0.2, fill = "white", color = "black", position = position_dodge(width = 1)) +
-                     labs(y = "Serial intervals since observed case", x = "Prediction group type") +
-                     coord_cartesian(ylim = c(0, 8)) +
-                     theme(legend.position = "none") +
-                     scale_x_discrete(labels = c("only 0", "no 0", "include 0"))
-
-pred_case_scatter <- ggplot(total_table, aes(si_since_case, prop_zero, color = factor(disease), fill = factor(disease))) +
-                     facet_wrap(~disease, scales = "free") +
-                     geom_point() +
-                     labs(y = "Proportion predicting zero-incidence", x = "Serial intervals since last observed case") +
-                     coord_cartesian(xlim = c(0, 8)) +
-                     theme(legend.position = "none")
-
-pred_case_scatter
-@
-\caption[Maybe useless too]{The proportion of trajectories for each projection predicting a daily incidence of 0 for a given projection window by the number of serial intervals that have passed between the last observed case and the end of the calibration window for Ebola (red), influenza (green), and SARS (blue).}
-\label{pred_case_plot}
-\end{figure}
-
-\begin{figure}[h]
-<<zero_pred_plot, echo = FALSE, fig.width = 7, fig.height = 3>>=
-zero_pred_scatter <- ggplot(total_table, aes(no_proj_cases, prop_zero, color = factor(disease), fill = factor(disease))) +
-                     facet_wrap(~disease, scales = "free") +
-                     geom_point() +
-                     labs(y = "Proportion predicting zero-incidence", x = "Number of cases in prediction window") +
-                     # coord_cartesian(xlim = c(0, 8)) +
-                     theme(legend.position = "none")
-
-zero_pred_scatter
-@
-\caption{The proportion of trajectories for each projection predicting a daily incidence of 0 for a given projection window compared to the true number of cases in that prediction window for Ebola (red), influenza (green), and SARS (blue).}
-\label{zero_pred_plot}
-\end{figure}
-
-\begin{figure}[h]
-<<cali_zero_table, echo = FALSE, fig.width = 8, fig.height = 9>>=
+\begin{center}
+<<cali_zero_table, echo = FALSE, fig.width = 8, fig.height = 9, out.width=".7\\textwidth">>=
 facet1_names <- c(
   "1" = "Calibration 1",
   "2" = "Calibration 2",
@@ -2081,6 +1991,7 @@ cali_zero_plot
 @
 \caption[Number of cases in calibration window and prediction type]{The number of cases in a calibration window for each prediction type split by calibration window size (top number in headers over panels) and projection window (bottom number in headers over panels) - projections with trajectories that predict only a daily incidence of zero cases are referred to as "0", only non-zero cases as "1", and including trajectories of zero incidece "2" for Ebola (red), influenza (green), and SARS (blue).}
 \label{cali_zero_plot}
+\end{center}
 \end{figure}
 
 \FloatBarrier
@@ -2288,7 +2199,7 @@ multiplot(ebola_plot, influenza_plot, sars_plot, cols = 3)
 
 \FloatBarrier
 \newpage
-\subsection{Full prediction metrics}
+\subsection{Full performance metrics}
 
 \subsubsection{Average residual}
 \begin{figure}[h]
@@ -2321,7 +2232,7 @@ residual_massive <- ggplot(real_total_table, aes(cali_window_size, y = residual,
 # Print the figure
 residual_massive
 @
-\caption{The average residual for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for empirical outbreaks of Ebola (red), influenza (green), and SARS (blue) diseases.}
+\caption{The average residual for all seven calibration window sizes presented separately for each projection window number and disease, as indicated by the labels on top of each panel of empirical outbreaks of Ebola (red), influenza (green), and SARS (blue).}
 \label{real_whole_residual}
 \end{figure}
 \FloatBarrier
@@ -2358,7 +2269,7 @@ mse_massive <- ggplot(real_total_table, aes(cali_window_size, y = mse, color = d
 # Print the figure
 mse_massive
 @
-\caption{The mean-square error for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for empirical outbreaks of Ebola (red), influenza (green), and SARS (blue) diseases.}
+\caption{The mean-square error for all seven calibration window sizes presented separately for each projection window number and disease, as indicated by the labels on top of each panel of empirical outbreaks of Ebola (red), influenza (green), and SARS (blue).}
 \label{real_whole_mse}
 \end{figure}
 \FloatBarrier
@@ -2395,7 +2306,7 @@ sharpness_massive <- ggplot(real_total_table, aes(cali_window_size, y = sharpnes
 # Print the figure
 sharpness_massive
 @
-\caption{Sharpness for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for empirical outbreaks of Ebola (red), influenza (green), and SARS (blue) diseases.}
+\caption{Sharpness for all seven calibration window sizes presented separately for each projection window number and disease, as indicated by the labels on top of each panel of empirical outbreaks of Ebola (red), influenza (green), and SARS (blue).}
 \label{real_whole_sharpness}
 \end{figure}
 \FloatBarrier
@@ -2431,7 +2342,7 @@ bias_massive <- ggplot(real_total_table, aes(cali_window_size, y = bias, color =
 # Print the figure
 bias_massive
 @
-\caption{Bias for all seven calibration window size faceted into panels by disease and projection window number, as specified in the header of each panel for empirical outbreaks of Ebola (red), influenza (green), and SARS (blue) diseases.}
+\caption{Bias for all seven calibration window sizes presented separately for each projection window number and disease, as indicated by the labels on top of each panel of empirical outbreaks of Ebola (red), influenza (green), and SARS (blue).}
 \label{real_whole_bias}
 \end{figure}
 
