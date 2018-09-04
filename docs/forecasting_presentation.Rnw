@@ -63,28 +63,35 @@ MRes BMR Project 2}
 
 \begin{frame}[fragile]{Introduction}
 \begin{itemize}
-\setlength\itemsep{2em}
-  \item Forecasting incidence can be useful for informing outbreak response (eg. Ebola May-July 2018)
+\setlength\itemsep{1.5em}
+  \item Forecasting incidence can be useful for informing outbreak response (eg. Ebola May-July 2018) \\ 
+  \small{\textcolor{gray}{Ebola Outbreak Epidemiology Team 2018 \textit{Lancet}}
   \item There are many methods for forecasting incidence, for example:
 \end{itemize}
 \vspace{-1em}
 \begin{table}
 \small
 \begin{tabular}{C{2.75cm} C{2.75cm} C{2.75cm}}
-exponential growth rate & compartmental & branching process \\
+early growth phase & compartmental & branching process \\
 \includegraphics[width = 0.22\textwidth]{exponential_fig} & \includegraphics[width = 0.22\textwidth]{sir_fig} & \includegraphics[width = 0.22\textwidth]{branching_fig} \\
+\footnotesize{\textcolor{gray}{Chowell et al. 2007 \textit{J. Royal Soc. Interface}}} & \footnotesize{\textcolor{gray}{Funk et al. 2018 \textit{bioRxiv}}} & \textcolor{gray}{\footnotesize{Nouvellet et al. 2017 \textit{Epidemics}}} 
 \end{tabular}
 \end{table}
 
-\begin{textblock}{1}(0.05, 0.80)
-\small{\textcolor{gray}{Ebola Outbreak Epidemiology Team 2018 \textit{Lancet}, Chowell et al. 2007 \textit{J. Royal Soc. Interface}, Funk et al. 2018 \textit{bioRxiv}, Nouvellet et al. 2017 \textit{Epidemics}}}
-\end{textblock}
 \end{frame}
 
 \begin{frame}[fragile]{Introduction: Branching process models}
-\begin{center}
+%\begin{center}
 \includegraphics[width = 0.4\textwidth]{branching_fig}
-\end{center}
+%\end{center}
+
+\begin{textblock}{0.55}(0.55, 0.16)
+\begin{tcolorbox}[colback=white, colframe=black, size=title]
+\small{\textbf{\textit{R}} (reproduction number): average number of susceptibles infected by a given case} \vspace{1em} \\
+\small{\textbf{SI} (serial interval): time between two successive cases' clinical symptom onsets}
+\end{tcolorbox}
+\end{textblock}
+
 \begin{itemize}
 \setlength\itemsep{1.5em}
   \item Branching process models have some special features:
@@ -388,7 +395,7 @@ projection_plot
 \end{figure}
 
 \begin{textblock}{0.27}(0.24, 0.16)
-\begin{tcolorbox}[colback=red!50!white, colframe=red!50!white, size=title]
+\begin{tcolorbox}[colback=Orange!50!white, colframe=Orange!50!white, size=title]
 \begin{center}
 \footnotesize{R package \textbf{earlyR}}
 \end{center}
@@ -396,7 +403,7 @@ projection_plot
 \end{textblock}
 
 \begin{textblock}{0.33}(0.6, 0.16)
-\begin{tcolorbox}[colback=red!50!white, colframe=red!50!white, size=title]
+\begin{tcolorbox}[colback=Orange!50!white, colframe=Orange!50!white, size=title]
 \begin{center}
 \footnotesize{R package \textbf{projections}}
 \end{center}
@@ -1778,11 +1785,11 @@ multiplot(bias_sub2, bias_sub)
   \item Forecasted incidence tends to be overestimated
 \end{itemize}
 \vspace{2em}
-Future work could involve:
+\textbf{Future work could involve:}
 \begin{itemize}
    \item a more systematic analysis of empirical outbreaks
-   \item developing a tool for visualising performance amongst all metrics at once
-   \item considering the impact of imperfect reporting (eg. under-reporting, reporting delays)
+   \item considering the impact of imperfect reporting
+   \item developing a tool for visualising all metrics simultaneously 
 \end{itemize}
 \end{frame}
 
