@@ -1,0 +1,1865 @@
+\documentclass[10pt, usenames,dvipsnames]{beamer}
+
+\usetheme[progressbar=frametitle]{metropolis}
+\usepackage{appendixnumberbeamer}
+
+\usepackage{booktabs}
+\usepackage[scale=2]{ccicons}
+
+\usepackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+
+\usepackage{xspace}
+\newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
+
+\title{Evaluating incidence forecasting for informing outbreak response}
+\subtitle{\textit{Branching process models in early outbreak settings}}
+\date{\today}
+\date{}
+\author{Janetta Skarp \\
+Supervisors: Dr Thibaut Jombart, Dr Anne Cori \\
+MRes BMR Project 2}
+
+\graphicspath{ {/home/evelina/Development/forecasting/figs/} } % Where the images will be found 
+
+\setbeamerfont{page number in head/foot}{size=\small}
+\setbeamertemplate{footline}[frame number] % for frame numbers
+
+\usepackage[numbers]{natbib} % for bibliography
+\usepackage[font={small}]{caption} % make captions smaller
+\usepackage[table]{xcolor, colortbl} % add colour to tables
+
+% for adding references to slide
+\usepackage[absolute,overlay]{textpos}
+\usepackage{calc}
+\newcommand\FrameText[1]{%
+\begin{textblock*}{\paperwidth}(\textwidth-\widthof{#1},\textheight)\raggedright #1\hspace{0.5em}
+\end{textblock*}}
+
+% For getting intro figures right
+\usepackage{array}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+% for putting figures whereever
+\usepackage{textpos}
+\setlength{\TPHorizModule}{\textwidth} % horizontal unit
+\setlength{\TPVertModule}{\textwidth} % vertical unit
+
+\usepackage{tcolorbox} % for colour boxes
+
+\usepackage[dvipsnames]{xcolor} % more colours
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%
+%% Title page %%
+%%%%%%%%%%%%%%%%
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%%
+%% Introduction %%
+%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]{Introduction}
+\begin{itemize}
+\setlength\itemsep{2em}
+  \item Forecasting incidence can be useful for informing outbreak response (eg. Ebola May-July 2018)
+  \item There are many methods for forecasting incidence, for example:
+\end{itemize}
+\vspace{-1em}
+\begin{table}
+\small
+\begin{tabular}{C{2.75cm} C{2.75cm} C{2.75cm}}
+exponential growth rate & compartmental & branching process \\
+\includegraphics[width = 0.22\textwidth]{exponential_fig} & \includegraphics[width = 0.22\textwidth]{sir_fig} & \includegraphics[width = 0.22\textwidth]{branching_fig} \\
+\end{tabular}
+\end{table}
+
+\begin{textblock}{1}(0.05, 0.80)
+\small{\textcolor{gray}{Ebola Outbreak Epidemiology Team 2018 \textit{Lancet}, Chowell et al. 2007 \textit{J. Royal Soc. Interface}, Funk et al. 2018 \textit{bioRxiv}, Nouvellet et al. 2017 \textit{Epidemics}}}
+\end{textblock}
+\end{frame}
+
+\begin{frame}[fragile]{Introduction: Branching process models}
+\begin{center}
+\includegraphics[width = 0.4\textwidth]{branching_fig}
+\end{center}
+\begin{itemize}
+\setlength\itemsep{1.5em}
+  \item Branching process models have some special features:
+    \begin{itemize}
+      \item full serial interval distribution
+      \item individual-based and stochastic in discrete time
+      \item infinite pool of susceptibles
+    \end{itemize}
+  \item Branching process models' performance for early outbreak analysis has not yet been explored
+\end{itemize}
+
+\begin{textblock}{1}(0.05, 0.85)
+\small{\textcolor{gray}{Nouvellet et al. 2017 \textit{Epidemics}}}
+\end{textblock}
+\end{frame}
+
+% With image next to text
+
+% \begin{frame}[fragile]{Introduction: Branching process models}
+%   \begin{tabular}{cl}  
+%     \begin{tabular}{c}
+%       \includegraphics[width = 0.4\textwidth]{branching_fig}
+%     \end{tabular}
+%     & \begin{tabular}{l}
+%       \parbox{0.5\linewidth}{%  change the parbox width as appropiate
+%         \begin{itemize}
+%           \setlength\itemsep{2em}
+%             \item Branching process models have some special features:
+%             \begin{itemize}
+%               \item individual-based and stochastic in discrete time
+%               \item infinite pool of susceptibles
+%               \item full serial interval distribution
+%             \end{itemize}
+%         \end{itemize}
+%              }
+%          \end{tabular}  \\
+% \end{tabular}
+% 
+% \begin{itemize}
+%   \item Branching process models' performance for early outbreak analysis has not yet been explored
+% \end{itemize}
+% \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%% Research question %%
+%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]{Research question}
+
+\begin{itemize}
+  \item How well does a branching process model predict disease incidence early in the outbreak? 
+\end{itemize}
+
+\begin{figure}[h]
+<<good_bad_plot, cache = TRUE, echo = FALSE, fig.align = "center", message = FALSE, warning = FALSE, out.width=".45\\textwidth">>=
+library(incidence)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(epitrix)
+library(distcrete)
+library(outbreaker)
+
+# Simulation
+sim_outbreak <- function() {
+  mu <- 11.6
+  cv <- 5.6 / 11.6
+  R0 <- 2.02
+  obs_time <- round(mu) * 8
+  
+  sim_si <- gamma_mucv2shapescale(mu, cv)
+  si <- distcrete("gamma", shape = sim_si$shape, scale = sim_si$shape, w = 0, interval = 1)
+  
+  sim_test <- simOutbreak(R0 = R0, infec.curve = si$d(0:30), n.hosts = 1000000, duration = obs_time, seq.length = 10, stop.once.cleared = FALSE)
+  
+  sim_outbreak <- data.frame(id = sim_test$id,
+                             inf_id = sim_test$ances,
+                             onset = sim_test$onset)
+  return(sim_outbreak)  
+}
+
+# Serial interval for projection
+mu <- 11.6
+cv <- 5.6 / 11.6
+R0 <- 2.02
+delta <- round(mu)
+  
+sim_si <- gamma_mucv2shapescale(mu, cv)
+si <- distcrete("gamma", shape = sim_si$shape, scale = sim_si$shape, w = 0, interval = 1)
+
+# Accurate but imprecise projection
+set.seed(48)
+wide_linelist <- sim_outbreak() 
+wide_i <- incidence(wide_linelist$onset, interval = 1, last_date = (round(11.6) * 8))
+wide_R <- get_R(wide_i[1:(delta * 2), ], si = si, max_R = 10)
+wide_proj <- project(wide_i[1:(delta * 2), ], R = sample_R(wide_R, 1000), si = si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+wide_plot <- plot(wide_i[1:(5*12-1), ]) %>% add_projections(wide_proj[(2*12):(3*12), ], quantiles = c(0.05, 0.5))# (wide_proj[(4 * 12):((5 * 12) - 1), ])
+wide_plot <- wide_plot + theme(legend.position = "none",
+                               axis.text = element_text(size = 20),
+                               axis.title = element_text(size = 24)) +
+                         coord_cartesian(ylim = c(0, 55)) +
+                         xlab("Time (days)") # +
+                         # annotate("text", label = "B", x = 5, y = 65)
+# Call plot
+wide_plot
+@
+\label{goodbad_plot}
+\end{figure}
+
+\begin{textblock}{0.5}(0.82, 0.5)
+\LARGE{\textbf{?}}
+\end{textblock}
+
+\end{frame}
+
+% Data
+<<functions_data, echo = FALSE, results = "hide", message = FALSE>>=
+# Function for making multi-panel plots
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+library(data.table)
+library(dplyr)
+# Combo tables for the diseases
+# Ebola
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/ebola_8si_norm_new/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+# read and row bind all data sets
+ebola_table <- rbindlist(lapply(output_files, fread))
+ebola_table$cali_proj_ratio <- round(ebola_table$cali_window_size / ebola_table$proj_window_no, 1)
+ebola_table$pred_type[ebola_table$pred_type == 1] <- 0
+ebola_table$pred_type[ebola_table$pred_type == 3] <- 1
+ebola_table$lm_pred[ebola_table$pred_type == 0] <- 3
+ebola_table$lm_pred[ebola_table$pred_type == 1] <- 2
+ebola_table$lm_pred[ebola_table$pred_type == 2] <- 1
+# SARS
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/sars_8si_norm_new/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+# read and row bind all data sets
+sars_table <- rbindlist(lapply(output_files, fread))
+sars_table$cali_proj_ratio <- round(sars_table$cali_window_size / sars_table$proj_window_no, 1)
+sars_table$pred_type[sars_table$pred_type == 1] <- 0
+sars_table$pred_type[sars_table$pred_type == 3] <- 1
+sars_table$lm_pred[sars_table$pred_type == 0] <- 3
+sars_table$lm_pred[sars_table$pred_type == 1] <- 2
+sars_table$lm_pred[sars_table$pred_type == 2] <- 1
+# Influenza
+# list all files in directory named full_proj_metrics.csv
+output_files <- list.files("/home/evelina/Development/forecasting/simulations/influenza_8si_norm_new/", pattern = "full_proj_metrics.csv", 
+                           full.names = TRUE, recursive = TRUE)
+# read and row bind all data sets
+influenza_table <- rbindlist(lapply(output_files, fread))
+influenza_table$cali_proj_ratio <- round(influenza_table$cali_window_size / influenza_table$proj_window_no, 1)
+influenza_table$pred_type[influenza_table$pred_type == 1] <- 0
+influenza_table$pred_type[influenza_table$pred_type == 3] <- 1
+influenza_table$lm_pred[influenza_table$pred_type == 0] <- 3
+influenza_table$lm_pred[influenza_table$pred_type == 1] <- 2
+influenza_table$lm_pred[influenza_table$pred_type == 2] <- 1
+
+# Combine all diseases into one table
+total_table <- bind_rows(ebola_table, sars_table, influenza_table)
+@
+
+<<real_outbreaks, echo = FALSE, results = "hide", message = FALSE, warning = FALSE>>=
+real_ebola <- read.csv("/home/evelina/Development/forecasting/simulations/real_outbreaks/ebola/full_proj_metrics.csv")
+# real_ebola$cali_window_size <- real_ebola$cali_window_size / real_ebola$proj_window_size
+real_ebola$cali_proj_ratio <- round(real_ebola$cali_window_size / real_ebola$proj_window_no, 1)
+real_ebola$pred_type[real_ebola$pred_type == 1] <- 0
+real_ebola$pred_type[real_ebola$pred_type == 3] <- 1
+real_sars <- read.csv("/home/evelina/Development/forecasting/simulations/real_outbreaks/sars/full_proj_metrics.csv") 
+# real_sars$cali_window_size <- real_sars$cali_window_size / real_sars$proj_window_size
+real_sars$cali_proj_ratio <- round(real_sars$cali_window_size / real_sars$proj_window_no, 1)
+real_sars$pred_type[real_sars$pred_type == 1] <- 0
+real_sars$pred_type[real_sars$pred_type == 3] <- 1
+real_influenza <- read.csv("/home/evelina/Development/forecasting/simulations/real_outbreaks/influenza/full_proj_metrics.csv")
+# real_influenza$cali_window_size <- real_influenza$cali_window_size / real_influenza$proj_window_size
+real_influenza$cali_proj_ratio <- round(real_influenza$cali_window_size / real_influenza$proj_window_no, 1)
+real_influenza$pred_type[real_influenza$pred_type == 1] <- 0
+real_influenza$pred_type[real_influenza$pred_type == 3] <- 1
+  
+real_total_table <- bind_rows(real_ebola, real_sars, real_influenza)
+@
+
+<<global_options, echo = FALSE>>=
+knitr::opts_chunk$set(fig.pos = 'H')
+@
+
+%%%%%%%%%%%%%
+%% Methods %%
+%%%%%%%%%%%%%
+
+\begin{frame}[fragile]{Methods: Forecasting}
+\vspace{2em}
+\begin{figure}[h]
+<<branching_process_ex_1, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width=".9\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3, quantiles = c(0.05, 0.5)) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   annotation_custom(ggplotGrob(R_plot), xmin = 0.2, xmax = 6.9, ymin = 100, ymax = 200) +
+                   geom_segment(aes(x = 1, xend = 6.9, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 6.9, xend = 1, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 7.1, xend = 18.8, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 18.8, xend = 7.1, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   annotate("text", label = "Calibration window", x = 4, y = 77) +
+                   annotate("text", label = "Projection", x = 13, y = 77) +
+                   # annotate("label", x = 3.75, y = 55, label = "R package earlyR", fill = "darkorange") +
+                   # annotate("label", x = 13, y = 55, label = "R package projections", fill = "darkorange") +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+
+\begin{textblock}{0.27}(0.24, 0.16)
+\begin{tcolorbox}[colback=red!50!white, colframe=red!50!white, size=title]
+\begin{center}
+\footnotesize{R package \textbf{earlyR}}
+\end{center}
+\end{tcolorbox}
+\end{textblock}
+
+\begin{textblock}{0.33}(0.6, 0.16)
+\begin{tcolorbox}[colback=red!50!white, colframe=red!50!white, size=title]
+\begin{center}
+\footnotesize{R package \textbf{projections}}
+\end{center}
+\end{tcolorbox}
+\end{textblock}
+
+\end{frame}
+
+\begin{frame}[fragile]{Methods: Prediction performance metrics}
+\begin{figure}[h]
+<<branching_process_residual, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width=".75\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3[, 1]) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 11, yend = 62), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\begin{center}
+\vspace{-0.5em}
+\textbf{Average residual}
+
+\vspace{-0.5em}
+\textcolor{gray}{MSE}
+
+\vspace{-0.5em}
+\textcolor{gray}{Sharpness}
+
+\vspace{-0.5em}
+\textcolor{gray}{Bias}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Methods: Prediction performance metrics}
+\begin{figure}[h]
+<<branching_process_mse, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width=".75\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3[, 1]) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 11, yend = 62), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 62, yend = 11), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\begin{center}
+\vspace{-0.5em}
+\textcolor{gray}{Average residual}
+
+\vspace{-0.5em}
+\textbf{Mean-square relative error (MSE)}
+
+\vspace{-0.5em}
+\textcolor{gray}{Sharpness}
+
+\vspace{-0.5em}
+\textcolor{gray}{Bias}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Methods: Prediction performance metrics}
+\begin{figure}[h]
+<<branching_process_sharp, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width=".75\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3, quantiles = c(0.05, 0.5)) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 108, yend = 20), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 20, yend = 108), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\begin{center}
+\vspace{-0.5em}
+\textcolor{gray}{Average residual}
+
+\vspace{-0.5em}
+\textcolor{gray}{MSE}
+
+\vspace{-0.5em}
+\textbf{Sharpness}
+
+\vspace{-0.5em}
+\textcolor{gray}{Bias}
+\end{center}
+
+\begin{textblock}{1}(0.05, 0.85)
+\small{\textcolor{gray}{Funk et al. 2018 \textit{bioRxiv}}}
+\end{textblock}
+
+\end{frame}
+
+\begin{frame}[fragile]{Methods: Prediction performance metrics}
+\begin{figure}[h]
+<<branching_process_bias, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width=".75\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3[, 1]) %>% add_projections(flu_proj3[, 2]) %>% add_projections(flu_proj3[, 3]) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 15.5, xend = 15.5, y = 31, yend = 25), size = 0.5, color = "green",
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 15.3, xend = 15.3, y = 31, yend = 42), size = 0.5, color = "red",
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 15.7, xend = 15.7, y = 31, yend = 44), size = 0.5, color = "red",
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\begin{center}
+\vspace{-0.5em}
+\textcolor{gray}{Average residual}
+
+\vspace{-0.5em}
+\textcolor{gray}{MSE}
+
+\vspace{-0.5em}
+\textcolor{gray}{Sharpness}
+
+\vspace{-0.5em}
+\textbf{Bias}
+\end{center}
+
+\begin{textblock}{1}(0.05, 0.85)
+\small{\textcolor{gray}{Funk et al. 2018 \textit{bioRxiv}}}
+\end{textblock}
+\end{frame}
+
+\begin{frame}[fragile]{Methods: Forecasting}
+\begin{figure}[h]
+<<branching_process_ex, echo = FALSE, warning = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width=".75\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3, quantiles = c(0.05, 0.5)) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   # annotation_custom(ggplotGrob(R_plot), xmin = 0.2, xmax = 6.9, ymin = 100, ymax = 200) +
+                   geom_segment(aes(x = 1, xend = 6.9, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 6.9, xend = 1, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 7.1, xend = 18.8, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 18.8, xend = 7.1, y = 70, yend = 70), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 7.1, xend = 9.9, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 9.9, xend = 7.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 10.1, xend = 12.9, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 12.9, xend = 10.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 13.1, xend = 15.9, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 15.9, xend = 13.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 16.1, xend = 18.8, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 18.8, xend = 16.1, y = 50, yend = 50), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   annotate("text", label = "Calibration window", x = 4, y = 77) +
+                   annotate("text", label = "Projection", x = 13, y = 77) +
+                   annotate("text", label = "1", x = 8.6, y = 55) +
+                   annotate("text", label = "2", x = 11.6, y = 55) +
+                   annotate("text", label = "3", x = 14.6, y = 55) +
+                   annotate("text", label = "4", x = 17.6, y = 55) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+% \centerline{\includegraphics[width=0.8\textwidth]{projection_example}}
+%\caption{A visualisation of a calibration window (true daily incidence: black bars), utilised for obtaining a likelihood distribution of the reproduction number ($R$) for the outbreak, and full projection for daily incidence forecasts (median: purple line, 95\% projection interval: shaded area). The full projection is split into individual projection windows later analysed by performance metrics (arrows labelled 1-4).}
+\label{projection_ex}
+\end{figure}
+\vspace{-1em}
+\begin{itemize}
+  % \item The calibration window's incidence (black bars) is used to obtain a distribution of $R$
+  % \item A sample of the $R$ distribution is used for projections
+  \item The full projection is split into individual projection windows
+  \item These are analysed with the performance metrics
+\end{itemize}
+
+\begin{textblock}{0.5}(0.315, 0.2)
+\includegraphics[width = 0.4\textwidth]{calibration_key}
+\end{textblock}
+
+\end{frame}
+
+% \begin{frame}[fragile]{Methods: Prediction performance metrics}
+% \begin{itemize}
+%   \item \textbf{Average residual}
+%     \begin{itemize}
+%       \item a value of 0 means forecasted incidence matches true incidence
+%       \item positive values imply underprediction, negative values imply overprediction
+%     \end{itemize}
+%   \item \textbf{Relative mean squared error} (MSE)
+%     \begin{itemize}
+%       \item a value of 0 means forecasted incidence matches true incidence
+%     \end{itemize}
+%   \item \textbf{Sharpness}
+%     \begin{itemize}
+%       \item the closer to 1 the value is, the more similar the projections are
+%     \end{itemize}
+%   \item \textbf{Bias}
+%     \begin{itemize}
+%       \item a value of 0 implies that projections do not consistently over- or underpredict incidence
+%     \end{itemize}
+% \end{itemize}
+% \end{frame}
+
+\begin{frame}[fragile]{Methods: Outbreaks}
+<<real_projections, eval = TRUE, echo = FALSE, message = "hide", warning = FALSE>>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+
+set.seed(1)
+# Ebola
+setwd("/home/evelina/Development/forecasting/data/")
+ebola_sl <- read.csv("sierraleone_ebola_2014_clean.csv")
+ebola_sl$date <- as.Date(ebola_sl$date, format = "%d/%m/%Y")
+ebola_i <- as.incidence(ebola_sl$new_cases, ebola_sl$date, interval = 1)
+setwd("/home/evelina/Development/forecasting/simulations/real_outbreaks/ebola/")
+delta <- 12
+
+# Get serial interval and R calculation
+# cv = sigma / mean 
+ebola_sim_si <- gamma_mucv2shapescale(11.6, (5.6/11.6))
+ebola_si <- distcrete("gamma", shape = ebola_sim_si$shape, scale = ebola_sim_si$shape, w = 0, interval = 1)
+ebola_R1 <- get_R(ebola_i[1:(delta * 1), ], si = ebola_si, max_R = 10)
+ebola_R2 <- get_R(ebola_i[1:(delta * 2), ], si = ebola_si, max_R = 10)
+ebola_R3 <- get_R(ebola_i[1:(delta * 3), ], si = ebola_si, max_R = 10)
+ebola_R4 <- get_R(ebola_i[1:(delta * 4), ], si = ebola_si, max_R = 10)
+ebola_R5 <- get_R(ebola_i[1:(delta * 5), ], si = ebola_si, max_R = 10)
+ebola_R6 <- get_R(ebola_i[1:(delta * 6), ], si = ebola_si, max_R = 10)
+ebola_R7 <- get_R(ebola_i[1:(delta * 7), ], si = ebola_si, max_R = 10)
+
+# Projections
+ebola_proj1 <- project(ebola_i[1:delta, ], R = sample_R(ebola_R1, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+ebola_proj2 <- project(ebola_i[1:(delta*2), ], R = sample_R(ebola_R2, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+ebola_proj3 <- project(ebola_i[1:(delta*3), ], R = sample_R(ebola_R3, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+ebola_proj4 <- project(ebola_i[1:(delta*4), ], R = sample_R(ebola_R4, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+ebola_proj5 <- project(ebola_i[1:(delta*5), ], R = sample_R(ebola_R5, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 3), R_fix_within = TRUE)
+ebola_proj6 <- project(ebola_i[1:(delta*6), ], R = sample_R(ebola_R6, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 2), R_fix_within = TRUE)
+ebola_proj7 <- project(ebola_i[1:(delta*7), ], R = sample_R(ebola_R7, 1000), si = ebola_si, 
+                  n_sim = 10000, n_days = (delta * 1), R_fix_within = TRUE)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+# Get serial interval and R calculation
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R1 <- get_R(flu_i[1:(delta * 1), ], si = flu_si, max_R = 10)
+flu_R2 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_R3 <- get_R(flu_i[1:(delta * 3), ], si = flu_si, max_R = 10)
+flu_R4 <- get_R(flu_i[1:(delta * 4), ], si = flu_si, max_R = 10)
+flu_R5 <- get_R(flu_i[1:(delta * 5), ], si = flu_si, max_R = 10)
+flu_R6 <- get_R(flu_i[1:(delta * 6), ], si = flu_si, max_R = 10)
+flu_R7 <- get_R(flu_i[1:(delta * 7), ], si = flu_si, max_R = 10)
+
+# Projections
+flu_proj1 <- project(flu_i[1:delta, ], R = sample_R(flu_R1, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+flu_proj2 <- project(flu_i[1:(delta*2), ], R = sample_R(flu_R2, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+flu_proj3 <- project(flu_i[1:(delta*3), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+flu_proj4 <- project(flu_i[1:(delta*4), ], R = sample_R(flu_R4, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+flu_proj5 <- project(flu_i[1:(delta*5), ], R = sample_R(flu_R5, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 3), R_fix_within = TRUE)
+flu_proj6 <- project(flu_i[1:(delta*6), ], R = sample_R(flu_R6, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 2), R_fix_within = TRUE)
+flu_proj7 <- project(flu_i[1:(delta*7), ], R = sample_R(flu_R7, 1000), si = flu_si, 
+                  n_sim = 10000, n_days = (delta * 1), R_fix_within = TRUE)
+
+# SARS
+data("sars_canada_2003")
+sars_2003 <- sars_canada_2003
+sars_2003$total_cases <- rowSums(sars_2003[ , 2:5])
+sars_2003$date <- as.Date(sars_2003$date)
+sars_i <- as.incidence(sars_2003$total_cases, sars_2003$date, interval = 1)
+
+delta <- 9
+
+# Get serial interval and R calculation
+# cv = sigma / mean 
+sars_sim_si <- gamma_mucv2shapescale(8.7, (3.6/8.7))
+sars_si <- distcrete("gamma", shape = sars_sim_si$shape, scale = sars_sim_si$shape, w = 0, interval = 1)
+sars_R1 <- get_R(sars_i[1:(delta * 1), ], si = sars_si, max_R = 10)
+sars_R2 <- get_R(sars_i[1:(delta * 2), ], si = sars_si, max_R = 10)
+sars_R3 <- get_R(sars_i[1:(delta * 3), ], si = sars_si, max_R = 10)
+sars_R4 <- get_R(sars_i[1:(delta * 4), ], si = sars_si, max_R = 10)
+sars_R5 <- get_R(sars_i[1:(delta * 5), ], si = sars_si, max_R = 10)
+sars_R6 <- get_R(sars_i[1:(delta * 6), ], si = sars_si, max_R = 10)
+sars_R7 <- get_R(sars_i[1:(delta * 7), ], si = sars_si, max_R = 10)
+
+# Projections
+sars_proj1 <- project(sars_i[1:delta, ], R = sample_R(sars_R1, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+sars_proj2 <- project(sars_i[1:(delta*2), ], R = sample_R(sars_R2, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+sars_proj3 <- project(sars_i[1:(delta*3), ], R = sample_R(sars_R3, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+sars_proj4 <- project(sars_i[1:(delta*4), ], R = sample_R(sars_R4, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 4), R_fix_within = TRUE)
+sars_proj5 <- project(sars_i[1:(delta*5), ], R = sample_R(sars_R5, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 3), R_fix_within = TRUE)
+sars_proj6 <- project(sars_i[1:(delta*6), ], R = sample_R(sars_R6, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 2), R_fix_within = TRUE)
+sars_proj7 <- project(sars_i[1:(delta*7), ], R = sample_R(sars_R7, 1000), si = sars_si, 
+                  n_sim = 10000, n_days = (delta * 1), R_fix_within = TRUE)
+@
+<<empirical_plot, eval = TRUE, echo = FALSE, fig.width = 8, fig.height = 3, fig.align = "left", out.width=".7\\textwidth">>=
+library(incidence)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+
+set.seed(1)
+# Ebola incidence
+# load("proj_window_1.RData")
+# ebola_projection_1 <- proj_window
+ebola_plot <- plot(ebola_i[1:(8*12), ])
+ebola_plot <- ebola_plot +
+              labs(x = "Date") +
+              theme(axis.text = element_text(size = 28),
+                    axis.title = element_text(size = 32))
+# %>% add_projections(ebola_proj1, quantiles = FALSE) %>% add_projections(ebola_proj2, quantiles = FALSE) %>% add_projections(ebola_proj3, quantiles = FALSE) %>% add_projections(ebola_proj4, quantiles = FALSE) %>% add_projections(ebola_proj5, quantiles = FALSE) %>% add_projections(ebola_proj6, quantiles = FALSE) %>% add_projections(ebola_proj7, quantiles = FALSE)
+
+# SARS incidence
+sars_plot <- plot(sars_i[1:(8*9), ])
+sars_plot <- sars_plot +
+             labs(x = "Date") +
+             theme(axis.text = element_text(size = 28),
+                   axis.title = element_text(size = 32))
+# %>% add_projections(sars_proj1, quantiles = FALSE) %>% add_projections(sars_proj1, quantiles = FALSE) %>% add_projections(sars_proj2, quantiles = FALSE) %>% add_projections(sars_proj3, quantiles = FALSE) %>% add_projections(sars_proj4, quantiles = FALSE) %>% add_projections(sars_proj5, quantiles = FALSE) %>% add_projections(sars_proj6, quantiles = FALSE) %>% add_projections(sars_proj7, quantiles = FALSE)
+
+# Influenza incidence
+influenza_plot <- plot(flu_i[1:(8*3), ])
+influenza_plot <- influenza_plot +
+                  labs(x = "Day") +
+                   theme(axis.text = element_text(size = 28),
+                         axis.title = element_text(size = 32))
+# %>% add_projections(flu_proj1, quantiles = FALSE) %>% add_projections(flu_proj2, quantiles = FALSE) %>% add_projections(flu_proj3, quantiles = FALSE) %>% add_projections(flu_proj4, quantiles = FALSE) %>% add_projections(flu_proj5, quantiles = FALSE) %>% add_projections(flu_proj6, quantiles = FALSE) %>% add_projections(flu_proj7, quantiles = FALSE)
+
+# Combine plots into one plot
+#multiplot(ebola_plot, influenza_plot, sars_plot, cols = 3)
+@
+    \begin{tabular}{ccc}
+      \textbf{Ebola} & \textbf{Influenza} & \textbf{SARS} \\
+      \rowcolor[gray]{.8}
+      Empirical outbreaks & & \\
+      \begin{figure}
+<<ebola_plot, eval = TRUE, echo = FALSE, fig.align = "center", out.width=".24\\textwidth">>=
+ebola_plot
+@
+      \end{figure}
+     &
+      \begin{figure}
+<<influenza_plot, eval = TRUE, echo = FALSE, fig.align = "center", out.width=".24\\textwidth">>=
+influenza_plot
+@
+      \end{figure}
+     &
+      \begin{figure}
+<<sars_plot, eval = TRUE, echo = FALSE, fig.align = "center", out.width=".24\\textwidth">>=
+sars_plot
+@
+      \end{figure}
+    \\
+    \small{Sierra Leone, 2014 & \small{Baltimore, 1918} & \small{Canada, 2003} \\
+    \tiny{Open Data Sierra Leone} & \tiny{Cori \textit{R package EpiEstim}} & \tiny{Jombart et al. \textit{R package outbreaks}} \\
+    \rowcolor[gray]{.8}
+    Simulated outbreaks & & \\
+    $R_{0}$: 2.02 & $R_{0}$: 1.77 & $R_{0}$: 2.70 \\
+    SI mean: 11.6 days & SI mean: 2.6 days & SI mean: 8.7 days \\
+    SI SD: 5.6 days & SI SD: 1.5 days & SI SD: 3.6 days \\
+    \tiny{Ebola Response Team 2014 \textit{N. Engl. J. Med.}} & \tiny{Campbell et al. 2018 \textit{PLOS Pathog.}} & \tiny{Fraser et al. 2011 \textit{Am. J. Epidemiol.}}
+   \end{tabular}
+% \vspace{-2em}
+% \begin{table}
+% \small
+% \begin{tabular}{l | l | l | l | l}
+% Disease & $R_{0}$ & SI mean (days) & SI SD (days) & Source \\
+% \hline \hline
+% Ebola & 2.02 & 11.6 & 5.6 & \tiny{Ebola Response Team 2014 N. Engl. J. Med.} \\ 
+% Influenza & 1.77 & 2.6 & 1.5 & \tiny{Campbell et al. 2018 PLOS Pathog.} \\
+% SARS & 2.70 & 8.7 & 3.6 & \tiny{Fraser et al. 2011 Am. J. Epidemiol.} \\
+% \end{tabular}
+%\caption{\small{The basic reproduction number, $R_{0}$, and serial interval (SI) mean and standard deviation (SD) in days used for simulating outbreaks of Ebola, influenza, and Severe Acute Respiratory Syndrome (SARS).}}
+% \label{outbreak_table}
+% \end{table}
+\end{frame}
+
+%%%%%%%%%%%%%
+%% Results %%
+%%%%%%%%%%%%%
+
+\begin{frame}[fragile]{Results: Average residual}
+\begin{textblock}{0.5}(0.99, 0)
+\includegraphics[width = 0.4\textwidth]{calibration_key}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.39, 0)
+\vspace{-1.38em}
+\begin{figure}
+<<branching_process_residual_small, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width="0.5\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3[, 1]) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 11, yend = 62), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.26)
+\rotatebox[origin=c]{90}{\textbf{Simulated}}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.59)
+\rotatebox[origin=c]{90}{\textbf{Empirical}}
+\end{textblock}
+
+\vspace{1.5em}
+\begin{figure}
+<<residual_plot, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE, out.width="0.95\\textwidth">>=
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Residual
+residual_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(residual), std = sd(residual), q1 = quantile(residual, probs = 0.025), q2 = quantile(residual, probs = 0.25), q3 = quantile(residual, probs = 0.75), q4 = quantile(residual, probs = 0.975))
+
+residual_sub <- ggplot(residual_iqr, aes(cali_proj, y = med, ymin = q2, ymax = q3, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_pointrange(size = 0.5, shape = 16) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Residual", x = "Calibration window size:projection window number") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+residual_sub2 <- ggplot(residual_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    # coord_cartesian(ylim = quantile(sub_table$residual, c(0, 0.97))) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Residual", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(real_total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Empirical
+residual_sub <- ggplot(sub_table, aes(x = cali_proj, y = residual, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_point(size = 1.5, shape = 16) +
+                    facet_wrap(~dataset, scales = "free") +
+                    labs(y = "Residual", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          strip.text.x = element_blank(),
+                          axis.text.x = element_text(angle = 45))
+
+# Call plot
+multiplot(residual_sub2, residual_sub)
+@
+\end{figure}
+
+\begin{textblock}{0.5}(1.07, 0.25)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.54)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.47)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.21)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.8)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\end{frame}
+
+% \begin{frame}[fragile]{Results: Average residual}
+% \begin{tabular}{cc}
+% \rotatebox[origin=c]{90}{Simulated} 
+% & 
+% \begin{figure}
+<<sim_residual_plot, echo = FALSE, fig.width = 6, fig.height = 2.5, warning = FALSE, eval = FALSE>>=
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Residual
+residual_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(residual), std = sd(residual), q1 = quantile(residual, probs = 0.025), q2 = quantile(residual, probs = 0.25), q3 = quantile(residual, probs = 0.75), q4 = quantile(residual, probs = 0.975))
+
+residual_sub <- ggplot(residual_iqr, aes(cali_proj, y = med, ymin = q2, ymax = q3, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_pointrange(size = 0.5, shape = 16) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Residual", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+residual_sub2 <- ggplot(residual_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    # coord_cartesian(ylim = quantile(sub_table$residual, c(0, 0.97))) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Residual", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(real_total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Empirical
+residual_sub <- ggplot(sub_table, aes(x = cali_proj, y = residual, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_point(size = 1.5, shape = 16) +
+                    facet_wrap(~dataset, scales = "free") +
+                    labs(y = "Residual", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45))
+
+# Call plot
+residual_sub2
+# multiplot(residual_sub2, residual_sub)
+@
+% \end{figure} 
+% \\
+% \rotatebox[origin=c]{90}{Empirical} 
+% &
+% \vspace{-2em}
+% \begin{figure}
+<<emp_residual_plot, echo = FALSE, fig.width = 6, fig.height = 2.5, warning = FALSE, eval = FALSE>>=
+residual_sub
+@
+% \end{figure} 
+% \\
+% \end{tabular}
+% \end{frame}
+
+\begin{frame}[fragile]{Results: MSE}
+\begin{textblock}{0.5}(0.99, 0)
+%\vspace{0.000001em}
+\includegraphics[width = 0.4\textwidth]{calibration_key}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.39, 0)
+\vspace{-1.38em}
+\begin{figure}
+<<branching_process_mse_small, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width="0.5\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3[, 1]) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 11, yend = 62), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 62, yend = 11), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.26)
+\rotatebox[origin=c]{90}{\textbf{Simulated}}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.59)
+\rotatebox[origin=c]{90}{\textbf{Empirical}}
+\end{textblock}
+
+\vspace{1.5em}
+\begin{figure}
+<<mse_plot, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE, out.width="0.95\\textwidth">>=
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# MSE
+mse_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(mse), std = sd(mse), q1 = quantile(mse, probs = 0.025), q2 = quantile(mse, probs = 0.25), q3 = quantile(mse, probs = 0.75), q4 = quantile(mse, probs = 0.975))
+
+mse_sub <- ggplot(mse_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_pointrange(size = 0.5, shape = 16) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "MSE", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+mse_sub2 <- ggplot(mse_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    # coord_cartesian(ylim = quantile(sub_table$residual, c(0, 0.97))) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "MSE", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(real_total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Empirical
+mse_sub <-  ggplot(sub_table, aes(x = cali_proj, y = mse, color = cali_window_size)) +
+                    geom_point(size = 1.5, shape = 16) +
+                    facet_wrap(~dataset, scales = "free") +
+                    labs(y = "MSE", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          strip.text.x = element_blank())
+
+# Call plot
+multiplot(mse_sub2, mse_sub)
+@
+\end{figure}
+
+\begin{textblock}{0.5}(1.07, 0.46)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.21)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.79)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.54)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\end{frame}
+
+\begin{frame}[fragile]{Results: Sharpness}
+\begin{textblock}{0.5}(0.99, 0)
+\includegraphics[width = 0.4\textwidth]{calibration_key}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.375, 0)
+\vspace{-1.38em}
+\begin{figure}
+<<branching_process_sharp_small, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width="0.5\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3, quantiles = c(0.05, 0.5)) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 108, yend = 20), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 16.5, xend = 16.5, y = 20, yend = 108), size = 0.5,
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.26)
+\rotatebox[origin=c]{90}{\textbf{Simulated}}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.59)
+\rotatebox[origin=c]{90}{\textbf{Empirical}}
+\end{textblock}
+
+\vspace{1.5em}
+\begin{figure}
+<<sharpness_plot, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE, out.width="0.95\\textwidth">>=
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Sharpness
+sharpness_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.025), q2 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75), q4 = quantile(sharpness, probs = 0.975))
+
+sharpness_sub <- ggplot(sharpness_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_pointrange(size = 0.5, shape = 16) +
+                    facet_wrap(~disease, scales = "free") +
+                    coord_cartesian(ylim = c(0, 1)) +
+                    labs(y = "Sharpness", x = "Calibration window size:projection window number") +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank(),
+                          strip.text.x = element_blank())
+
+sharpness_sub2 <- ggplot(sharpness_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    # geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    coord_cartesian(ylim = c(0, 1)) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Sharpness", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(real_total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Sharpness
+sharpness_sub <- ggplot(sub_table, aes(x = cali_proj, y = sharpness, color = cali_window_size)) +
+                    geom_point(size = 1.5, shape = 16) +
+                    facet_wrap(~dataset, scales = "free") +
+                    coord_cartesian(ylim = c(0, 1)) +
+                    labs(y = "Sharpness", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          strip.text.x = element_blank(),
+                          axis.text.x = element_text(angle = 45))
+
+# Call plot
+multiplot(sharpness_sub2, sharpness_sub)
+@
+\end{figure}
+
+\begin{textblock}{0.5}(1.07, 0.21)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.46)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.54)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.79)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\end{frame}
+
+\begin{frame}[fragile]{Results: Bias}
+\begin{textblock}{0.5}(0.99, 0)
+\includegraphics[width = 0.4\textwidth]{calibration_key}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.37, 0)
+\vspace{-1.38em}
+\begin{figure}
+<<branching_process_bias_small, echo = FALSE, warning = FALSE, message = FALSE, fig.width = 6, fig.height = 4, fig.align = "center", out.width="0.5\\textwidth">>=
+library(epitrix)
+library(distcrete)
+library(incidence)
+library(earlyR)
+library(projections)
+library(EpiEstim)
+library(outbreaks)
+library(ggplot2)
+library(grid)
+library(gridBase)
+library(magrittr)
+
+# Influenza
+data("Flu1918")
+flu_1918 <- Flu1918
+flu_i <- as.incidence(flu_1918$incidence, interval = 1)
+
+delta <- 3
+
+set.seed(1)
+
+# Get serial interval and R calculation, do projection
+# cv = sigma / mean 
+flu_sim_si <- gamma_mucv2shapescale(2.6, (1.5/2.6))
+flu_si <- distcrete("gamma", shape = flu_sim_si$shape, scale = flu_sim_si$shape, w = 0, interval = 1)
+flu_R3 <- get_R(flu_i[1:(delta * 2), ], si = flu_si, max_R = 10)
+flu_proj3 <- project(flu_i[1:(delta * 2), ], R = sample_R(flu_R3, 1000), si = flu_si, 
+                     n_sim = 10000, n_days = (delta * 4 + 1), R_fix_within = TRUE)
+
+# Plot R distribution
+R_dataframe <- data.frame(grid = flu_R3$R_grid,
+                          ml = flu_R3$R_ml,
+                          ll = flu_R3$R_like)
+
+R_plot <- ggplot(R_dataframe, aes(x = grid, y = ll)) +
+                 geom_line(color = "dodgerblue") +
+                 geom_area(fill = "dodgerblue", alpha = 0.5) +
+                 geom_vline(xintercept = R_dataframe$ml, linetype = "dashed") +
+                 labs(x = "Reproduction number", y = "Likelihood", size = 5) +
+                 annotate("text", label = paste("R =", round(R_dataframe$ml, 2), sep = " "), 
+                          x = R_dataframe$ml + 1, y = max(R_dataframe$ll), size = 4) +
+                 coord_cartesian(xlim = c(0.0, 10.0)) +
+                 theme(axis.text.y = element_blank(),
+                       axis.ticks.y = element_blank())
+
+
+# Plot influenza incidence
+influenza_incidence <- plot(flu_i[1:19, ]) %>% add_projections(flu_proj3[, 1]) %>% add_projections(flu_proj3[, 2]) %>% add_projections(flu_proj3[, 3]) # the base projection plot
+projection_plot <- influenza_incidence + 
+                   geom_vline(xintercept = 7, linetype = "dashed") +
+                   labs(x = "Day") +
+                   coord_cartesian(xlim = c(1, 18)) +
+                   geom_segment(aes(x = 15.5, xend = 15.5, y = 31, yend = 25), size = 0.5, color = "green",
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 15.3, xend = 15.3, y = 31, yend = 42), size = 0.5, color = "red",
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   geom_segment(aes(x = 15.7, xend = 15.7, y = 31, yend = 44), size = 0.5, color = "red",
+                   arrow = arrow(length = unit(0.3, "cm"))) +
+                   theme(legend.position = "none")
+# Print plot
+projection_plot
+@
+\end{figure}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.26)
+\rotatebox[origin=c]{90}{\textbf{Simulated}}
+\end{textblock}
+
+\begin{textblock}{0.5}(0.09, 0.59)
+\rotatebox[origin=c]{90}{\textbf{Empirical}}
+\end{textblock}
+
+\vspace{1.5em}
+\begin{figure}
+<<bias_plot, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE, out.width="0.95\\textwidth">>=
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Bias
+bias_iqr <- sub_table %>% group_by(disease, cali_proj, cali_window_size) %>% summarise(med = median(bias), std = sd(bias), q1 = quantile(bias, probs = 0.025), q2 = quantile(bias, probs = 0.25), q3 = quantile(bias, probs = 0.75), q4 = quantile(bias, probs = 0.975))
+
+bias_sub <- ggplot(bias_iqr, aes(cali_proj, y = med, ymin = q1, ymax = q3, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_pointrange(size = 0.5, shape = 16) +
+                    facet_wrap(~disease, scales = "free") +
+                    coord_cartesian(ylim = c(-1, 1)) +
+                    labs(y = "Bias", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45))
+
+bias_sub2 <- ggplot(bias_iqr, aes(x = cali_proj, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_boxplot(aes(ymin = q1, lower = q2, middle = med, upper = q3, ymax = q4, width = 0.5), stat = "identity") +
+                    coord_cartesian(ylim = c(-1, 1)) +
+                    facet_wrap(~disease, scales = "free") +
+                    labs(y = "Bias", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 45),
+                          axis.title.x = element_blank())
+
+# Only want calibration windows 1, 2, and 4
+sub_table <- filter(real_total_table, cali_window_size == 1 | cali_window_size == 2 | cali_window_size == 4) 
+
+# Make a new column so that I get all the combinations into one graph
+sub_table$cali_proj <- paste(sub_table$cali_window_size, ":", sub_table$proj_window_no, sep = "")
+
+# Empirical
+bias_sub <- ggplot(sub_table, aes(x = cali_proj, y = bias, color = cali_window_size)) +
+                    geom_hline(yintercept = 0, linetype = "dashed") +
+                    geom_point(size = 1.5, shape = 16) +
+                    facet_wrap(~dataset, scales = "free") +
+                    coord_cartesian(ylim = c(-1, 1)) +
+                    labs(y = "Bias", x = "Projection window") +
+                    scale_x_discrete(breaks = c("1:1", "1:2", "1:3", "1:4", "2:1", "2:2", "2:3", "2:4", "4:1", "4:2", "4:3", "4:4"),
+                                     labels = c("1", "2", "3", "4", "1", "2", "3", "4", "1", "2", "3", "4")) +
+                    theme(legend.position = "none",
+                          strip.text.x = element_blank(),
+                          axis.text.x = element_text(angle = 45))
+
+# Call plot
+multiplot(bias_sub2, bias_sub)
+@
+\end{figure}
+
+\begin{textblock}{0.5}(1.07, 0.34)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.21)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.46)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.67)
+\footnotesize{\textcolor{OliveGreen}{Good}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.54)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\begin{textblock}{0.5}(1.07, 0.79)
+\footnotesize{\textcolor{red}{Bad}}
+\end{textblock}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%
+%% Conclusions %%
+%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]{Conclusions}
+\begin{itemize}
+  \item Projection intervals widen as incidence is forecasted further
+  \item Increasing calibration window size improves forecast
+  \item Forecasted incidence tends to be overestimated
+\end{itemize}
+\vspace{2em}
+Future work could involve:
+\begin{itemize}
+   \item a more systematic analysis of empirical outbreaks
+   \item developing a tool for visualising performance amongst all metrics at once
+   \item considering the impact of imperfect reporting (eg. under-reporting, reporting delays)
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Acknowledgements}
+I would like to thank:
+\begin{itemize}
+  \item Dr Thibaut Jombart
+  \item Dr Anne Cori
+  \item The Wellcome Trust
+\end{itemize}
+\end{frame}
+
+% \begin{frame}[fragile]{Further work}
+% The performance of branching process models under different scenarios could be investigated:
+% \begin{itemize}
+% \setlength\itemsep{1.5em}
+%   \item impact of imperfect reporting (eg. under-reporting, reporting delays)
+%   \item other empirical outbreaks
+%   \item different time windows
+% \end{itemize}
+% \end{frame}
+
+\begin{frame}{Extras: Average residual equation}
+\begin{equation}
+\epsilon_{t} = \frac{\sum_{i = 1}^{I}{(x_{t} - p_{i t})}}{I}
+\end{equation}
+\end{frame}
+
+\begin{frame}{Extras: MSE equation}
+\begin{equation}
+MSE_{t} = \frac{\sum_{i = 1}^{I}{(x_{t} - p_{i t})^{2}}}{I \times (x + 1)^{2}}
+\end{equation}
+\end{frame}
+
+\begin{frame}{Extras: Sharpness equation}
+\begin{equation}
+S_{t} = 1 - \frac{median(|(p_{t} + 1) - (median(p_{t} + 1))|)}{median(p_{t} + 1)}
+\end{equation}
+\end{frame}
+
+\begin{frame}{Extras: Bias equation}
+\begin{equation}
+B_{t} = 2(E_{t}(H(p_{i t} - x_{t})) - 0.5)
+\end{equation}
+\end{frame}
+
+\begin{frame}{Extras: Sharpness distribution}
+\begin{figure}
+<<sharpness_plot_total, echo = FALSE, fig.width = 7, fig.height = 3, out.width="0.95\\textwidth">>=
+library(ggplot2)
+text_size <- 5
+
+# RMSE plot with calibration window to projection window ratio
+sharpness_table <- total_table %>% group_by(disease, pred_type) %>% summarise(avg = median(sharpness), std = sd(sharpness), q1 = quantile(sharpness, probs = 0.25), q3 = quantile(sharpness, probs = 0.75))
+                          
+sharpness_type <- ggplot(total_table, aes(factor(pred_type),
+                     sharpness, color = factor(disease), fill = factor(disease))) +
+                     coord_cartesian(ylim = c(0, 1)) +
+                     # scale_y_log10() +
+                     facet_wrap(~disease) +
+                     # geom_pointrange(position = position_dodge(width = 0.5), size = 0.3) +
+                     geom_violin(trim = TRUE, scale = "width", position = position_dodge(width = 1)) +
+                     geom_boxplot(position = position_dodge(width = 1), width = 0.1, fill = "white", color = "black") +
+                     labs(y = "Sharpness", x = "Prediction group type") +
+                     theme(legend.position = "none") +
+                     scale_x_discrete(labels = c("only 0", "no 0", "include 0"))
+
+# Table that I print
+sharpness_type
+@
+\end{figure}
+\end{frame}
+
+\begin{frame}{Extras: Overestimation}
+\begin{center}
+\includegraphics[width = 0.9\textwidth]{overestimation_example}
+\end{center}
+\end{frame}
+
+\end{document}
